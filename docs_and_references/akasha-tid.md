@@ -132,8 +132,14 @@ akasha/
 │   └── _processed/               # raw sources after ingest (immutable archive)
 ├── Knowledge/                    # generated atomic notes (agent-owned)
 │   ├── math/                     # domain folders only — see _domains.md
+│   │   ├── _moc-registry.md      # domain MOC registry (agent-maintained)
+│   │   └── <MOCs + atomic notes> # flat within domain; hierarchy via MOC links
 │   ├── cs/
+│   │   ├── _moc-registry.md
+│   │   └── ...
 │   ├── quant/                    # examples; driven by _domains.md approved list
+│   │   ├── _moc-registry.md
+│   │   └── ...
 │   ├── _domains.md               # domain registry (controlled vocabulary)
 │   └── _index.md                 # master index (+ MOC list)
 ├── Goals/                        # goal cascade (§5.8)
@@ -181,6 +187,42 @@ Akasha's knowledge layer is **Zettelkasten substrate + LYT hubs**, chosen delibe
 Domain folders (`math/`, `cs/`, …) are coarse buckets only; the real structure is wikilinks + MOCs.
 A note's **physical location** is always its domain folder. Its **type** (`concept|math|source|entity|question|moc`) lives in the `type:` frontmatter field, never as a subdirectory — there are no `concepts/` or `entities/` folders under `Knowledge/`. This avoids dual-axis fragmentation (domain × type).
 
+#### MOC hierarchy protocol
+
+MOCs form a **recursive tree within each domain**, navigated via a domain-level registry file. Three levels via `moc_level` frontmatter:
+
+- **`domain`** — the top-level domain hub (e.g. `Linear Algebra MOC` under `math/`). One per domain, root of the MOC tree.
+- **`topic`** — major topic within a domain (e.g. `Vector Spaces MOC`).
+- **`subtopic`** — any depth below topic (e.g. `Eigenvalues MOC`, `Norms and Inner Products MOC`). Recursive — a subtopic can nest another subtopic indefinitely.
+
+Each MOC has one structural parent (enforced by frontmatter + registry), except domain-level MOCs which have none. **Notes are not constrained by the MOC tree** — a note can be listed in any number of MOCs, cross-domain, with free `[[wikilinks]]` between all notes. The MOC tree is a navigation overlay on a wiki graph, not a replacement for it.
+
+**Registry file** (`Knowledge/<domain>/_moc-registry.md`): a derived index maintained by `akasha-ingest` and `akasha-lint`. The MOC frontmatter is the source of truth; the registry is a fast-lookup cache.
+
+```markdown
+# math — MOC Registry
+
+| MOC | Level | Parent | Notes |
+|-----|-------|--------|-------|
+| [[Linear Algebra MOC]] | domain | — | 15 |
+| [[Calculus MOC]] | domain | — | 8 |
+| [[Vector Spaces MOC]] | topic | [[Linear Algebra MOC]] | 7 |
+| [[Eigenvalues MOC]] | subtopic | [[Vector Spaces MOC]] | 4 |
+```
+
+**Split/merge heuristics** (enforced by `akasha-lint`):
+- **Split signal**: a MOC with 15+ direct notes → agent proposes splitting into subtopic MOCs during ingest or lint. Never auto-splits; always proposes to the user.
+- **Merge signal**: a MOC with fewer than 3 notes → flagged as a merge candidate in lint reports.
+- **Depth warning**: MOC chains deeper than 4 levels → gentle nudge in lint (not an error).
+
+**Note placement protocol** (in `akasha-ingest`):
+1. Read the domain's `_moc-registry.md`.
+2. Walk the tree from domain-level MOC → deepest matching MOC for the note's content.
+3. List the note under the best MOC heading. If no MOC fits, list under the domain-level MOC directly.
+4. **Cross-list** if the note is relevant to MOCs in other domains — add it there too. The note's file stays in its primary domain; only the MOC link is cross-domain.
+5. Update the registry's `Notes` count for MOC(s) touched.
+6. Check threshold — if a MOC hits 15 notes, propose splitting.
+
 ### 5.1 Note data model
 
 Six note types, each a `Templates/` file with frontmatter (ported from autonote's templates, trimmed):
@@ -199,7 +241,14 @@ sources: []             # [[source notes]] / Inbox/_processed/<file>
 ---
 ```
 
-A note's physical location is its **domain** folder under `Knowledge/`; its **type** lives in frontmatter — there are no `concepts/` or `entities/` subdirectories. `math` adds nothing structural — it just signals "body is LaTeX-heavy, transcribed from a photo source." Keep the body sections minimal (Definition / Why it matters / Connections) to avoid empty-section lint noise. `moc` notes live in their primary domain folder (or `Knowledge/` root if cross-domain); all MOCs are listed in `_index.md`. `moc` is a curated hub (§5.0): its body is a hand-ordered, annotated link list, exempt from empty-section lint.
+MOC notes add two additional frontmatter fields (§5.0):
+
+```yaml
+moc_level: domain | topic | subtopic   # position in the MOC hierarchy
+parent: "[[Parent MOC]]"               # empty for domain-level MOCs
+```
+
+A note's physical location is its **domain** folder under `Knowledge/`; its **type** lives in frontmatter — there are no `concepts/` or `entities/` subdirectories. `math` adds nothing structural — it just signals "body is LaTeX-heavy, transcribed from a photo source." Keep the body sections minimal (Definition / Why it matters / Connections) to avoid empty-section lint noise. `moc` notes live in their primary domain folder; all MOCs are listed in `_index.md` and tracked in their domain's `_moc-registry.md`. `moc` is a curated hub (§5.0): its body is a hand-ordered, annotated link list, exempt from empty-section lint.
 
 The `daily` and `weekly` templates are **accountability** templates, separate from the six knowledge note types above — they live in `Templates/` alongside the knowledge set but apply only to `Daily/` and `Reviews/`.
 
@@ -210,7 +259,7 @@ Ported from autonote `wiki-ingest`, simplified (no locking, no address allocator
 ```markdown
 ---
 name: akasha-ingest
-description: Process one Inbox item — text note or photo of math. Read it, (transcribe to LaTeX if an image), route into an existing domain from _domains.md (propose new ones, never auto-create), extract concepts/entities, create or update atomic notes under Knowledge/, cross-link, update _index.md, then move the raw source to Inbox/_processed/. Delegate one agent per Inbox item.
+description: Process one Inbox item — text note or photo of math. Read it, (transcribe to LaTeX if an image), route into an existing domain from _domains.md (propose new ones, never auto-create), navigate the MOC registry to place the note in the deepest matching MOC, cross-list across domains if relevant, extract concepts/entities, create or update atomic notes under Knowledge/, cross-link, update _index.md, then move the raw source to Inbox/_processed/. Delegate one agent per Inbox item.
 tools: read_file, write_file, edit_file, glob, grep, shell_command, think
 ---
 You integrate ONE source into the Knowledge base.
@@ -226,16 +275,30 @@ Process:
 4. For each significant concept/entity: create OR update the atomic note under
    Knowledge/<domain>/ using the matching Template (never route by type-folder;
    type is frontmatter only). status: seed.
-5. Cross-link with [[wikilinks]] to existing related notes. If a relevant MOC
-   exists, add the new note under the right MOC heading.
-6. Update Knowledge/_index.md.
-7. If a claim contradicts an existing note, add a "> [!contradiction]" callout.
-8. Move the raw source to Inbox/_processed/ (do NOT edit it in place).
-9. Report: Created / Updated / Source-archived / Proposed-domain (if any) /
-   one-line key insight.
+5. Navigate the MOC hierarchy for the note's domain:
+   a. Read Knowledge/<domain>/_moc-registry.md.
+   b. Walk the tree from the domain-level MOC to find the deepest matching
+      MOC for the note's content.
+   c. List the note under the best MOC heading in that MOC's body. If no
+      MOC fits, list under the domain-level MOC directly.
+   d. If the note is also relevant to MOCs in OTHER domains, cross-list it
+      there (add under the MOC heading). The note file stays in its primary
+      domain; only the MOC link crosses domains.
+   e. Update the Notes count in _moc-registry.md for each MOC touched.
+   f. If any MOC's count reaches 15, include a split proposal in the report
+      (suggest 2–3 subtopic MOC names + which notes would move). Do NOT
+      auto-create the new MOCs.
+6. Cross-link with [[wikilinks]] to existing related notes.
+7. Update Knowledge/_index.md.
+8. If a claim contradicts an existing note, add a "> [!contradiction]" callout.
+9. Move the raw source to Inbox/_processed/ (do NOT edit it in place).
+10. Report: Created / Updated / Source-archived / Proposed-domain (if any) /
+    MOC-placements / Cross-listings / Split-proposals (if any) /
+    one-line key insight.
 
 Never: create a new domain folder unprompted, edit anything under
-Inbox/_processed/, delete a raw capture, or duplicate a note already in _index.md.
+Inbox/_processed/, delete a raw capture, duplicate a note already in
+_index.md, or create a new MOC without proposing it first.
 ```
 
 ### 5.3 Hooks (the only two that exist on commandcode)
@@ -301,41 +364,100 @@ Because there is no `SessionStart` hook, bootstrap lives here:
 
 ### 5.6 `akasha-adopt` (one-shot existing-vault migration)
 
-Ported from PKM's `/adopt`. A **one-time, non-destructive** agent that folds an existing vault into Akasha so the old vault isn't left behind. Because the existing vault is already Zettel + folders (atomic notes, links, a Tags hub layer), it maps in cleanly with no reformatting.
+Ported from PKM's `/adopt`. A **one-time, non-destructive** agent that folds an existing vault into Akasha so the old vault isn't left behind. The existing vault already uses a proto-hierarchy: `4 - Indexes/` (7 empty domain files) and `3 - Tags/` (32 hub notes, mostly stubs) form a two-layer structure that maps to Akasha's MOC hierarchy.
+
+#### Existing vault structure → Akasha mapping
+
+The existing vault has three layers that map to Akasha:
+
+| Existing layer | Example | → Akasha |
+|---|---|---|
+| `4 - Indexes/` (7 empty files) | `Computer Science.md`, `Math.md` | Domain-level MOCs (`moc_level: domain`) |
+| `3 - Tags/` (32 files, mostly stubs) | `Machine Learning.md`, `Statistics.md` | Topic or subtopic MOCs (`moc_level: topic | subtopic`) |
+| `1- Rough Notes/` (76 files) | `K Nearest Neighbors Basics.md` | Atomic notes (processed through ingest) |
+| `2- Source Material/` (9 files) | `Mastery by Robert Greene.md` | Source notes (`type: source`) |
+
+The tags are flat (no hierarchy), but many are clearly nested — e.g. `Natural Language Processing` is a subtopic of `Machine Learning`; `pandas`, `numpy`, `matplotlib` are subtopics of `Python` or `Data Science`. The agent infers this hierarchy from link patterns: which tags are referenced together, which notes reference multiple tags, and which tags have child-like relationships.
+
+#### Migration protocol — 5 steps
 
 ```markdown
 ---
 name: akasha-adopt
-description: One-time migration of an existing Obsidian vault into Akasha structure. Scans folders, detects the org method, proposes a mapping, and on confirmation moves/registers content non-destructively. Run once, manually.
+description: One-time migration of an existing Obsidian vault into Akasha structure. Scans folders, infers MOC hierarchy from tag/note link patterns, proposes a domain→topic→subtopic mapping, and on confirmation moves/registers content non-destructively. Seeds _moc-registry.md for each domain. Run once, manually.
 tools: read_file, write_file, edit_file, glob, grep, shell_command, think
 ---
 You migrate an existing vault into Akasha. NON-DESTRUCTIVE and INCREMENTAL.
 
 Process:
-1. Scan the source vault: folders, note count, frontmatter presence, link
-   density. Detect the org method (expect Zettel + folders).
-2. Produce a MAPPING REPORT (folder -> Akasha target) and STOP for
-   confirmation. Change nothing yet.
-3. On approval, execute in small git-committed steps, one folder at a time:
-   - Rough/fleeting folders -> Inbox/ (re-ingested via akasha-ingest)
-   - Source-material folders -> Knowledge/ (type: source), backfill frontmatter
-   - Tag/index/hub notes      -> MOCs (type: moc)
-   - Template folders         -> merged into Templates/ (never overwrite)
-   - Seed Knowledge/_domains.md from the folders actually found
-4. Leave already-atomic notes in place; backfill MISSING frontmatter only.
-5. Report what moved, what was registered, and any notes needing manual review.
+1. SCAN the source vault: folders, note count, frontmatter presence, link
+   density. Map 4 - Indexes/ files to domain folders:
+   - Computer Science.md → cs/
+   - Math.md → math/
+   - Programming.md → cs/ (merged — programming is a domain of CS)
+   - Finance.md → quant/ (or finance/)
+   - Humanities.md → humanities/
+   - People.md → entities/ (or people/)
+   - Organization.md → skip (PARA-like; action tracking lives in Daily/Reviews)
+   Seed Knowledge/_domains.md from this mapping.
 
-Never: rewrite the body of an existing atomic note, overwrite a template, or
-proceed past step 2 without explicit confirmation.
+2. INFER TAG HIERARCHY. For each of the 32 tags in 3 - Tags/:
+   a. Read which rough notes reference it (from [[tag]] links).
+   b. Check if the tag is referenced by other tags (child-like relationship).
+   c. Check which domain it maps to (from step 1).
+   d. Propose moc_level: domain | topic | subtopic and parent MOC.
+   Example inference:
+   - Machine Learning → topic (referenced by many notes, children: NLP, scikitlearn)
+   - Natural Language Processing → subtopic (parent: Machine Learning)
+   - pandas → subtopic (parent: Python or Data Science)
+   - Algorithms and Complexity → topic (cross-references Data Structures and Algorithms)
+   PRODUCE A HIERARCHY PROPOSAL TABLE and STOP for confirmation. Change nothing yet.
+
+   Proposal table format:
+   | Tag | → MOC Name | moc_level | Parent | Domain | Notes that reference it |
+   |-----|-----------|-----------|--------|--------|------------------------|
+   | Machine Learning | Machine Learning MOC | topic | (domain root) | cs | KNN Basics, Deep Learning notes, ... |
+   | NLP | Natural Language Processing MOC | subtopic | Machine Learning MOC | cs | ... |
+
+3. On approval, create MOCs in small git-committed steps:
+   a. Convert each tag to a MOC note with moc_level, parent, domain frontmatter.
+   b. Place in the correct Knowledge/<domain>/ folder.
+   c. Populate the MOC body with links to notes that reference it.
+   d. Create _moc-registry.md for each domain with the full hierarchy.
+   e. For tags that cross-reference each other (e.g. Algorithms ↔ Data Structures),
+      link them in the MOC body as related MOCs.
+
+4. MIGRATE NOTES. For each rough note:
+   a. Determine primary domain from the MOCs it links to.
+   b. Backfill frontmatter (type, status: seed, domain, created, tags).
+   c. Place in primary domain folder.
+   d. List under the deepest matching MOC (cross-list if relevant to other domains).
+   e. Preserve all [[wikilinks]] as-is.
+   f. Leave already-atomic notes in place; backfill MISSING frontmatter only.
+
+5. MIGRATE SOURCE MATERIAL. 2- Source Material/ files → type: source notes in
+   their domain, backfilled with frontmatter.
+
+6. MERGE TEMPLATES. 5 - Templates/ → Templates/ (merge; keep Metalearning,
+   People, etc. — never overwrite existing Akasha templates).
+
+7. Report: domains created, MOCs created (per level), notes migrated per domain,
+   cross-listings, any notes needing manual review, any tags with ambiguous
+   hierarchy placement.
+
+Never: rewrite the body of an existing atomic note, overwrite a template,
+proceed past step 2 without explicit confirmation, or create MOCs without
+showing the hierarchy proposal first.
 ```
 
-Default mapping for the current vault (folder `4` was collapsed in the screenshot; it's resolved at scan time):
+Default mapping for the current vault:
 
 | Existing folder      | → Akasha target                                           |
 | -------------------- | --------------------------------------------------------- |
-| `1- Rough Notes`     | `Inbox/` (re-ingest)                                      |
+| `1- Rough Notes`     | `Inbox/` (re-ingest) → atomic notes in domain folders     |
 | `2- Source Material` | `Knowledge/` (`type: source`)                             |
-| `3 - Tags`           | MOCs (`type: moc`)                                        |
+| `3 - Tags`           | MOCs with `moc_level: topic | subtopic` (hierarchy inferred) |
+| `3 - Tags/4 - Indexes` | MOCs with `moc_level: domain` (one per domain)          |
 | `5 - Templates`      | `Templates/` (merge; keep `Metalearning`, `People`, etc.) |
 
 ### 5.7 Skill catalog
@@ -348,7 +470,7 @@ Wraps the headless `cmd` calls from §6.2. Delegates to `akasha-ingest` for each
 
 - **When:** End of day, anchored to the nightly planning ritual.
 - **Input:** None — reads everything in `Inbox/` (excluding `_processed/`), plus current week's deliverables.
-- **Output:** Summary — items processed, notes created/updated, domains touched, any proposed domains. Plus goal adjustment summary: deliverables rescheduled, patterns flagged, staleness warnings. Errors surfaced immediately with log tails.
+- **Output:** Summary — items processed, notes created/updated, domains touched, any proposed domains. MOC placements, cross-domain listings, and split proposals for any MOCs hitting 15+ notes. Plus goal adjustment summary: deliverables rescheduled, patterns flagged, staleness warnings. Errors surfaced immediately with log tails.
 - **Edge cases:** Empty Inbox → "Nothing to process." Already-processed items → skipped (idempotent). Agent error → surfaces which item failed and why, continues with remaining items. No active goals → skips goal adjustment silently.
 
 #### `/akasha-lint` — vault hygiene check
@@ -357,7 +479,7 @@ Runs the `akasha-lint` agent for read-only health checks.
 
 - **When:** Sunday review, or anytime you want a health check.
 - **Input:** None — scans entire `Knowledge/` and `Daily/`.
-- **Output:** Report grouped by issue type: orphaned notes (no incoming links), broken `[[wikilinks]]`, missing frontmatter fields, empty body sections, `seed` notes older than 30 days. Each issue includes file path and line number.
+- **Output:** Report grouped by issue type: orphaned notes (no incoming links), broken `[[wikilinks]]`, missing frontmatter fields, empty body sections, `seed` notes older than 30 days. Each issue includes file path and line number. **MOC hierarchy checks** (reads each domain's `_moc-registry.md`): orphaned MOCs (not listed in any parent MOC or registry), registry drift (MOCs in frontmatter but not in registry, or vice versa), overfull MOCs (15+ direct notes — split candidate), underfull MOCs (fewer than 3 notes — merge candidate), depth warnings (MOC chains deeper than 4 levels).
 - **Behavior:** Report-only, never auto-fixes. After reading the report, you can ask the agent to fix specific issues in a follow-up message.
 - **Edge cases:** Clean vault → "No issues found." Many issues → capped at 50 per type, with a count of remaining.
 
@@ -386,10 +508,10 @@ Runs the `akasha-goal-align` agent to check progress against stated goals.
 Runs the `akasha-adopt` agent for one-time migration of an existing Obsidian vault.
 
 - **When:** Once, when setting up Akasha with an existing vault.
-- **Input:** Scans the current vault structure — folders, note count, frontmatter presence, link density.
-- **Output:** Multi-step interactive process. First produces a mapping report (folder → Akasha target) and stops for explicit confirmation. On approval, executes migration in small git-committed steps.
-- **Behavior:** Non-destructive. Leaves atomic note bodies untouched, only backfills missing frontmatter. Never overwrites templates. Each step is a separate git commit for reversibility.
-- **Edge cases:** Already adopted → detects existing Akasha structure and warns. Partial migration → can resume from where it left off (checks what's already been moved).
+- **Input:** Scans the current vault structure — folders, note count, frontmatter presence, link density. Reads `3 - Tags/` and `4 - Indexes/` to infer the existing hierarchy.
+- **Output:** Multi-step interactive process. First produces a folder→target mapping report. Then infers a tag hierarchy from link patterns and produces a proposal table (tag → MOC name, `moc_level`, `parent`, `domain`, referencing notes) and stops for explicit confirmation. On approval, executes migration in small git-committed steps: creates MOCs with hierarchy, seeds `_moc-registry.md` per domain, migrates notes into domain folders with frontmatter backfill.
+- **Behavior:** Non-destructive. Leaves atomic note bodies untouched, only backfills missing frontmatter. Never overwrites templates. Each step is a separate git commit for reversibility. The hierarchy proposal is the critical gate — nothing moves until the user confirms the MOC structure.
+- **Edge cases:** Already adopted → detects existing Akasha structure and warns. Partial migration → can resume from where it left off (checks what's already been moved). Tags with ambiguous hierarchy → agent flags them in the proposal with a "needs review" marker.
 
 #### `/akasha-search <topic>` — query the knowledge base
 
@@ -825,7 +947,7 @@ cmd -p "$(cat bin/prompts/update-hotcache.md)" --yolo --skip-onboarding --max-tu
 
 ### 6.3 Hygiene (weekly, opt-in)
 
-`akasha-lint` (ported autonote `wiki-lint`, stripped of DragonScale checks): orphans, dead `[[links]]`, missing frontmatter, empty sections, stale `seed` notes >30d. **Reports only, never auto-fixes.** Run it as part of the Sunday review.
+`akasha-lint` (ported autonote `wiki-lint`, stripped of DragonScale checks): orphans, dead `[[links]]`, missing frontmatter, empty sections, stale `seed` notes >30d. MOC hierarchy checks: orphaned MOCs, registry drift, overfull/underfull MOCs, depth warnings. **Reports only, never auto-fixes.** Run it as part of the Sunday review.
 
 ### 6.4 Goal-setting flow
 
@@ -921,31 +1043,31 @@ git worktree add ../akasha-harness   feat/harness
 
 | #   | Worktree / branch | Owner              | Scope                                                                                              | Depends on      |
 | --- | ----------------- | ------------------ | -------------------------------------------------------------------------------------------------- | --------------- |
-| 1   | `feat/substrate`  | substrate-engineer | folder tree, 8 templates (6 knowledge + 2 accountability), `_index.md`, `hot.md`/`streak.md` stubs | —               |
+| 1   | `feat/substrate`  | substrate-engineer | folder tree, 8 templates (6 knowledge + 2 accountability), `_index.md`, `_domains.md`, `hot.md`/`streak.md` stubs, MOC template with `moc_level`/`parent` frontmatter fields, `_moc-registry.md` template | —               |
 | 2   | `feat/harness`    | harness-engineer   | `settings.json`, `auto-commit.sh`, `raw-guard.sh`, `AGENTS.md`, `bin/` stubs, `/akasha-nightly` skill | substrate paths |
 
 **Merge order:** `substrate` → `harness` → `sprint-1` → `main`.
-**Acceptance:** a `cmd` session in the vault loads `hot.md` via `AGENTS.md`; a write to `Knowledge/` triggers an auto-commit; a write to `Inbox/_processed/` is denied by the guard; `/akasha-nightly` runs the pipeline and surfaces any errors.
+**Acceptance:** a `cmd` session in the vault loads `hot.md` via `AGENTS.md`; a write to `Knowledge/` triggers an auto-commit; a write to `Inbox/_processed/` is denied by the guard; `/akasha-nightly` runs the pipeline and surfaces any errors; MOC template includes `moc_level` and `parent` frontmatter fields; `_moc-registry.md` template exists and is valid markdown table.
 
 ### Sprint 2 — Capture & Ingest (the engine)
 
 | #   | Worktree / branch | Owner             | Scope                                                                           | Depends on             |
 | --- | ----------------- | ----------------- | ------------------------------------------------------------------------------- | ---------------------- |
-| 1   | `feat/ingest`     | pipeline-engineer | `akasha-ingest` agent, `process-inbox.md`, index update, idempotency (I-4)      | Sprint 1               |
+| 1   | `feat/ingest`     | pipeline-engineer | `akasha-ingest` agent, `process-inbox.md`, MOC registry navigation, cross-domain listing, split threshold proposals, index update, idempotency (I-4)      | Sprint 1               |
 | 2   | `feat/vision`     | pipeline-engineer | photo→LaTeX transcription rules, `math` template wiring, `_processed/` archival | `feat/ingest` contract |
 | 3   | `feat/capture`    | pipeline-engineer | `/akasha-capture` skill for cmdc-native quick capture to Inbox                  | Sprint 1               |
 
 **Merge order:** `ingest` → `vision` → `capture` → `sprint-2` → `main`.
-**Acceptance:** dropping one typed note + one math photo in `Inbox/`, then running `/akasha-nightly`, yields two linked Knowledge notes (math one in LaTeX), an updated `_index.md`, both sources in `_processed/`, and a re-run creates no duplicates. `/akasha-capture "test note"` creates a file in `Inbox/` that gets processed on the next nightly run.
+**Acceptance:** dropping one typed note + one math photo in `Inbox/`, then running `/akasha-nightly`, yields two linked Knowledge notes (math one in LaTeX), an updated `_index.md`, both sources in `_processed/`, and a re-run creates no duplicates. The ingest agent navigates `_moc-registry.md` to place each note in the deepest matching MOC, cross-lists across domains when relevant, and updates the registry's `Notes` count. `/akasha-capture "test note"` creates a file in `Inbox/` that gets processed on the next nightly run.
 
 ### Sprint 2.5 — Adopt existing vault (one-shot)
 
 | #   | Worktree / branch | Owner             | Scope                                                                                 | Depends on              |
 | --- | ----------------- | ----------------- | ------------------------------------------------------------------------------------- | ----------------------- |
-| 1   | `feat/adopt`      | pipeline-engineer | `akasha-adopt` agent, `/akasha-adopt` skill, mapping report, non-destructive migration | Sprint 2 (needs ingest) |
+| 1   | `feat/adopt`      | pipeline-engineer | `akasha-adopt` agent, `/akasha-adopt` skill, tag hierarchy inference, MOC hierarchy proposal table, `_moc-registry.md` seeding, non-destructive migration | Sprint 2 (needs ingest) |
 
 **Merge order:** `adopt` → `sprint-2.5` → `main`.
-**Acceptance:** a dry run produces a folder→target mapping report and changes nothing; on approval the existing vault's notes land in Akasha with frontmatter backfilled, `3 - Tags` hub notes become MOCs, templates merged (none overwritten), `_domains.md` seeded from real folders — all reversible via git, no atomic-note bodies rewritten. `/akasha-adopt` is invokable as a slash command and handles the interactive confirmation flow.
+**Acceptance:** a dry run produces a folder→target mapping report and changes nothing; the agent infers a tag hierarchy from link patterns and produces a proposal table (tag → MOC name, `moc_level`, `parent`, `domain`, referencing notes) and stops for confirmation; on approval the existing vault's notes land in Akasha with frontmatter backfilled, `4 - Indexes/` files become domain-level MOCs (`moc_level: domain`), `3 - Tags/` hub notes become topic/subtopic MOCs with inferred hierarchy, `_moc-registry.md` is seeded for each domain, templates merged (none overwritten), `_domains.md` seeded from index files — all reversible via git, no atomic-note bodies rewritten. `/akasha-adopt` is invokable as a slash command and handles the interactive confirmation flow.
 
 ### Sprint 3 — Accountability & Review
 
@@ -961,11 +1083,11 @@ git worktree add ../akasha-harness   feat/harness
 
 | #   | Worktree / branch | Owner            | Scope                                                             | Depends on |
 | --- | ----------------- | ---------------- | ----------------------------------------------------------------- | ---------- |
-| 1   | `feat/lint`       | hygiene-engineer | `akasha-lint` agent, `/akasha-lint` skill (orphans/dead-links/frontmatter), report-only | Sprint 2   |
+| 1   | `feat/lint`       | hygiene-engineer | `akasha-lint` agent, `/akasha-lint` skill (orphans/dead-links/frontmatter, MOC hierarchy checks: orphaned MOCs, registry drift, overfull/underfull MOCs, depth warnings), report-only | Sprint 2   |
 | 2   | `feat/query`      | hygiene-engineer | `akasha-query` agent, `/akasha-search` + `/akasha-status` skills  | Sprint 2   |
 
 **Merge order:** `lint` → `query` → `sprint-4` → `main`.
-**Acceptance:** `/akasha-lint` flags a deliberately-orphaned note; `/akasha-search linear algebra` returns matching Knowledge notes with snippets; `/akasha-status` shows inbox count, streak, domain breakdown, and last nightly timestamp; all three are read-only and invokable as slash commands.
+**Acceptance:** `/akasha-lint` flags a deliberately-orphaned note, flags an overfull MOC (15+ notes) as a split candidate, detects registry drift between MOC frontmatter and `_moc-registry.md`; `/akasha-search linear algebra` returns matching Knowledge notes with snippets; `/akasha-status` shows inbox count, streak, domain breakdown, and last nightly timestamp; all three are read-only and invokable as slash commands.
 
 ### Sprint 5 — Goal Cascade & Study Materials
 

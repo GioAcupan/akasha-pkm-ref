@@ -1,0 +1,11 @@
+# goal-tracking
+- Use a 4-year goal horizon (matching college duration) with semester-level decomposition, including summer terms. Confidence: 0.70
+- Support both file ingestion (markdown + PDF with ebook TOC extraction) and CLI brainstorming for goal input, normalizing to a universal YAML-frontmatter structure. Confidence: 0.75
+- After file ingestion, offer a guided agent-led adjustment flow rather than flat accept/reject. Confidence: 0.75
+- Use hybrid tracking: YAML frontmatter for system-managed deliverables and status (with auto-rescheduling of slipped items), markdown checkboxes for user sub-tasks. Confidence: 0.75
+- Use goal areas: career, health, relationships, financial, academic, soul. Skip area weighting as over-engineering. Confidence: 0.75
+- Create a goal→domain→subdomain mapping hierarchy (e.g., academic→math→linear algebra) and a study materials directory with active/archived status grounded by ebook TOC. Confidence: 0.70
+- Auto-adjust weekly deliverables when missed by rescheduling forward rather than flagging failure or guilt. Confidence: 0.75
+- Store goal files in a Goals/ directory with subdirectories per level (4year/, semester/, monthly/, weekly/), not flat files. Confidence: 0.70
+- Integrate goal context into akasha-daily (morning suggestions from weekly deliverables) and akasha-nightly (evening auto-adjustment of slipped deliverables). Confidence: 0.70
+- Use an external PDF parser helper for material ingestion since the project runs on local open-source models that lack native PDF reading capability. Confidence: 0.70

@@ -81,3 +81,17 @@ Enforced by `raw-guard.sh` hook, not by trust.
 - MOCs are curated, hand-ordered hub notes for navigation.
 - Domain folders (`math/`, `cs/`, etc.) are coarse buckets only.
 - PARA is NOT used in the knowledge vault — action tracking lives in `Daily/` and `Reviews/`.
+
+### MOC Hierarchy
+
+Notes must remain freely linkable across MOCs without restriction — MOCs are navigational aids that provide hierarchy, not boundaries that limit cross-MOC wikilinks. The system is a wiki (not a tree), and linking patterns must never be constrained by MOC placement.
+
+MOCs form a recursive tree within each domain, navigated via `_moc-registry.md`:
+
+- **`moc_level: domain`** — root MOC, one per domain folder
+- **`moc_level: topic`** — major topic within a domain
+- **`moc_level: subtopic`** — any depth below topic (recursive)
+
+Each MOC has one structural parent (frontmatter `parent:` field), except domain-level MOCs. A note can be listed in any number of MOCs, cross-domain. The MOC tree overlays the wiki graph — it doesn't constrain it.
+
+Each domain folder contains `_moc-registry.md` — a derived index maintained by `akasha-ingest` and `akasha-lint`. The MOC frontmatter is the source of truth; the registry is a fast-lookup cache.
