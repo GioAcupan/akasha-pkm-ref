@@ -77,9 +77,28 @@ akasha/
 │   │   ├── akasha-weekly.md
 │   │   ├── akasha-goal-align.md
 │   │   └── akasha-adopt.md       # one-shot existing-vault migration
-│   └── hooks/
-│       ├── auto-commit.sh        # ported from PKM
-│       └── raw-guard.sh          # replaces permission lists
+│   ├── hooks/
+│   │   ├── auto-commit.sh        # ported from PKM
+│   │   └── raw-guard.sh          # replaces permission lists
+│   └── skills/
+│       ├── akasha-nightly/
+│       │   └── SKILL.md
+│       ├── akasha-lint/
+│       │   └── SKILL.md
+│       ├── akasha-review/
+│       │   └── SKILL.md
+│       ├── akasha-goal-check/
+│       │   └── SKILL.md
+│       ├── akasha-adopt/
+│       │   └── SKILL.md
+│       ├── akasha-search/
+│       │   └── SKILL.md
+│       ├── akasha-status/
+│       │   └── SKILL.md
+│       ├── akasha-daily/
+│       │   └── SKILL.md
+│       └── akasha-capture/
+│           └── SKILL.md
 ├── AGENTS.md                     # bootstrap + conventions (was SessionStart)
 ├── bin/
 │   ├── akasha-nightly.sh         # headless entrypoint
@@ -275,6 +294,107 @@ Default mapping for the current vault (folder `4` was collapsed in the screensho
 | `3 - Tags`           | MOCs (`type: moc`)                                        |
 | `5 - Templates`      | `Templates/` (merge; keep `Metalearning`, `People`, etc.) |
 
+### 5.7 Skill catalog
+
+All user-facing operations are invoked as slash commands. Skills either wrap an existing agent or compose multiple agents/scripts into a single workflow. No shell commands required.
+
+#### `/akasha-nightly` — run the ingest pipeline
+
+Wraps the headless `cmd` calls from §6.2. Delegates to `akasha-ingest` for each Inbox item, then updates the hot cache.
+
+- **When:** End of day, anchored to the nightly planning ritual.
+- **Input:** None — reads everything in `Inbox/` (excluding `_processed/`).
+- **Output:** Summary — items processed, notes created/updated, domains touched, any proposed domains. Errors surfaced immediately with log tails.
+- **Edge cases:** Empty Inbox → "Nothing to process." Already-processed items → skipped (idempotent). Agent error → surfaces which item failed and why, continues with remaining items.
+
+#### `/akasha-lint` — vault hygiene check
+
+Runs the `akasha-lint` agent for read-only health checks.
+
+- **When:** Sunday review, or anytime you want a health check.
+- **Input:** None — scans entire `Knowledge/` and `Daily/`.
+- **Output:** Report grouped by issue type: orphaned notes (no incoming links), broken `[[wikilinks]]`, missing frontmatter fields, empty body sections, `seed` notes older than 30 days. Each issue includes file path and line number.
+- **Behavior:** Report-only, never auto-fixes. After reading the report, you can ask the agent to fix specific issues in a follow-up message.
+- **Edge cases:** Clean vault → "No issues found." Many issues → capped at 50 per type, with a count of remaining.
+
+#### `/akasha-review` — weekly Sunday review
+
+Runs the `akasha-weekly` agent to produce a structured weekly review.
+
+- **When:** Sunday (or whenever you want to do a weekly review). Part of the weekly planning ritual.
+- **Input:** Reads the week's `Daily/*.md` files and `.akasha/streak.md`.
+- **Output:** Creates `Reviews/YYYY-WXX.md` from the weekly template. The agent reads your week and prompts you with five fixed questions (from the PKM accountability cascade). You answer interactively; the agent fills in the review note.
+- **Behavior:** Carries over any unfinished top-3 items from the week's dailies. Highlights streak breaks. Flags if any daily notes are missing (gaps in the week).
+- **Edge cases:** No dailies this week → prompts you to reflect on why, no judgment. Review already exists → appends to it rather than overwriting.
+
+#### `/akasha-goal-check` — goal alignment audit
+
+Runs the `akasha-goal-align` agent to check progress against stated goals.
+
+- **When:** Weekly or biweekly, during review or standalone.
+- **Input:** Reads recent `Daily/*.md` (last 7–14 days), `Reviews/*.md`, and the goal definitions (from `AGENTS.md` or a goals file).
+- **Output:** Read-only report — which goals are on track, which are drifting, with specific daily entries as evidence. Suggests adjustments but takes no action.
+- **Behavior:** Informational only. No side effects, no file writes. Designed to be fast and non-intrusive.
+- **Edge cases:** No recent dailies → reports insufficient data. No goals defined → prompts you to set some.
+
+#### `/akasha-adopt` — migrate existing vault
+
+Runs the `akasha-adopt` agent for one-time migration of an existing Obsidian vault.
+
+- **When:** Once, when setting up Akasha with an existing vault.
+- **Input:** Scans the current vault structure — folders, note count, frontmatter presence, link density.
+- **Output:** Multi-step interactive process. First produces a mapping report (folder → Akasha target) and stops for explicit confirmation. On approval, executes migration in small git-committed steps.
+- **Behavior:** Non-destructive. Leaves atomic note bodies untouched, only backfills missing frontmatter. Never overwrites templates. Each step is a separate git commit for reversibility.
+- **Edge cases:** Already adopted → detects existing Akasha structure and warns. Partial migration → can resume from where it left off (checks what's already been moved).
+
+#### `/akasha-search <topic>` — query the knowledge base
+
+Searches Knowledge for notes matching a topic.
+
+- **When:** Anytime you want to find what you know about something.
+- **Input:** A topic string (e.g., `/akasha-search linear algebra`).
+- **Output:** Ranked list of matching notes — title, domain, status, and a brief snippet showing the match context. Organized with exact title matches first, then wikilink matches, then body content matches.
+- **Behavior:** Read-only, no side effects. Searches `Knowledge/` by default. If no results, offers to search `Inbox/` (unprocessed captures) and `Inbox/_processed/` (archived sources) as well.
+- **Edge cases:** No results anywhere → suggests the topic might not exist yet, offers to create a seed note. Very broad query (e.g., "math") → caps at 20 results, suggests narrowing.
+
+#### `/akasha-status` — system dashboard
+
+Shows the current state of the Akasha system at a glance.
+
+- **When:** Anytime — quick sanity check before nightly, during reviews, or just to see how things are going.
+- **Input:** None.
+- **Output:** A compact dashboard showing:
+  - **Inbox:** N items pending (list filenames if ≤5)
+  - **Streak:** current streak length, last entry date, floors status (study/move/consume)
+  - **Domains:** note count per domain from `_domains.md`
+  - **Last nightly:** timestamp from git log or hot.md
+  - **Health:** count of `seed` notes >30d (stale), any lint warnings
+- **Behavior:** Read-only, instant, no side effects. Pulls from multiple files but writes nothing.
+- **Edge cases:** First run (no data yet) → shows zeros and onboarding hints. Missing files (no streak.md yet) → shows "not initialized" for that section.
+
+#### `/akasha-daily` — create today's daily note
+
+Scaffolds today's daily note from the template.
+
+- **When:** Start of day, or when you want to plan. Part of the daily planning ritual.
+- **Input:** None — uses today's date.
+- **Output:** Creates `Daily/YYYY-MM-DD.md` from the daily template. Pre-populates:
+  - Carries over unfinished top-3 items from yesterday's daily (items without checkmarks)
+  - Reads `.akasha/hot.md` for recent context
+  - Leaves energy tag and new top-3 for you to fill in
+- **Behavior:** Idempotent — if today's daily already exists, opens it instead of creating a duplicate. Never overwrites existing content.
+- **Edge cases:** No yesterday daily → creates fresh with empty top-3. Yesterday had no unfinished items → empty carry-over section.
+
+#### `/akasha-capture "text"` — quick capture to inbox
+
+Appends a quick typed note to the Inbox without opening Obsidian.
+
+- **When:** Anytime you have a fleeting thought, code snippet, or concept you want to capture from the terminal.
+- **Input:** Text content (e.g., `/akasha-capture "Zettelkasten: atomic notes, one idea each, linked by wikilinks"`).
+- **Output:** Creates a new file in `Inbox/` with a timestamp-based filename (e.g., `2025-01-15T14-30-00.md`) containing the text. Minimal frontmatter (date, status: seed).
+- **Behavior:** Quick, one-shot, no interaction needed. This is the cmdc-native capture rail — complements the photo sync rail (math/photos) and direct Obsidian typing (code/concepts).
+- **Edge cases:** Multi-line text → handled gracefully, preserves formatting. Empty input → prompts for content. This rail is text-only; images still go through the photo sync path.
+
 ---
 
 ## 6. Key flows
@@ -284,11 +404,15 @@ Default mapping for the current vault (folder `4` was collapsed in the screensho
 - **Math/graphs:** paper → phone photo → synced into `Inbox/` (Obsidian mobile or a synced folder).
 - **Code/concepts:** typed in Obsidian, either authored directly in `Knowledge/` or dropped as a fleeting `.md` in `Inbox/`.
 
-### 6.2 Nightly run — `bin/akasha-nightly.sh`
+### 6.2 Nightly run — `/akasha-nightly` skill
+
+The nightly pipeline is wrapped in a skill so it's invokable as a slash command — no manual shell commands needed.
+
+**Invocation:** `/akasha-nightly` (or `/akasha-nightly` typed in any cmdc session in the vault).
+
+**Under the hood**, the skill runs two headless `cmd` calls sequentially:
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
 cd "$HOME/akasha"
 cmd -p "$(cat bin/prompts/process-inbox.md)"   --yolo --skip-onboarding --max-turns 60
 cmd -p "$(cat bin/prompts/update-hotcache.md)" --yolo --skip-onboarding --max-turns 8
@@ -296,7 +420,11 @@ cmd -p "$(cat bin/prompts/update-hotcache.md)" --yolo --skip-onboarding --max-tu
 
 `process-inbox.md` instructs the main session: *"List every file in `Inbox/` (excluding `_processed/`). For each, delegate to the `akasha-ingest` agent. After all are filed, update `Knowledge/_index.md`."* (Delegation works headlessly; slash commands don't — hence prompt-driven, not `/skill`-driven.)
 
-**Trigger: manual, anchored to the 10:00 planning ritual — not cron.** A commuter laptop isn't reliably on at 11pm, and an invisible daemon is exactly the kind of ignorable plumbing that died before. Running `akasha-nightly.sh` (aliased to one word, e.g. `akasha`) as the last step of the existing nightly planning peg keeps it rhythm-based and keeps you in the loop. Cron/launchd is an optional later add, not a dependency.
+**Error surfacing:** The skill captures exit codes and stderr from both `cmd` runs. If either fails, it surfaces the error summary to the user — e.g. which agent errored, how many items processed before failure, and the relevant log tail. No silent failures.
+
+**Trigger: manual, anchored to the 10:00 planning ritual — not cron.** A commuter laptop isn't reliably on at 11pm, and an invisible daemon is exactly the kind of ignorable plumbing that died before. Running `/akasha-nightly` as the last step of the existing nightly planning peg keeps it rhythm-based and keeps you in the loop. Cron/launchd is an optional later add, not a dependency.
+
+**`bin/akasha-nightly.sh`** still exists as the script the skill delegates to — it can also be run directly if needed, but the skill is the primary interface.
 
 ### 6.3 Hygiene (weekly, opt-in)
 
@@ -344,10 +472,10 @@ git worktree add ../akasha-harness   feat/harness
 | #   | Worktree / branch | Owner              | Scope                                                                                              | Depends on      |
 | --- | ----------------- | ------------------ | -------------------------------------------------------------------------------------------------- | --------------- |
 | 1   | `feat/substrate`  | substrate-engineer | folder tree, 8 templates (6 knowledge + 2 accountability), `_index.md`, `hot.md`/`streak.md` stubs | —               |
-| 2   | `feat/harness`    | harness-engineer   | `settings.json`, `auto-commit.sh`, `raw-guard.sh`, `AGENTS.md`, `bin/` stubs                       | substrate paths |
+| 2   | `feat/harness`    | harness-engineer   | `settings.json`, `auto-commit.sh`, `raw-guard.sh`, `AGENTS.md`, `bin/` stubs, `/akasha-nightly` skill | substrate paths |
 
 **Merge order:** `substrate` → `harness` → `sprint-1` → `main`.
-**Acceptance:** a `cmd` session in the vault loads `hot.md` via `AGENTS.md`; a write to `Knowledge/` triggers an auto-commit; a write to `Inbox/_processed/` is denied by the guard.
+**Acceptance:** a `cmd` session in the vault loads `hot.md` via `AGENTS.md`; a write to `Knowledge/` triggers an auto-commit; a write to `Inbox/_processed/` is denied by the guard; `/akasha-nightly` runs the pipeline and surfaces any errors.
 
 ### Sprint 2 — Capture & Ingest (the engine)
 
@@ -355,38 +483,39 @@ git worktree add ../akasha-harness   feat/harness
 | --- | ----------------- | ----------------- | ------------------------------------------------------------------------------- | ---------------------- |
 | 1   | `feat/ingest`     | pipeline-engineer | `akasha-ingest` agent, `process-inbox.md`, index update, idempotency (I-4)      | Sprint 1               |
 | 2   | `feat/vision`     | pipeline-engineer | photo→LaTeX transcription rules, `math` template wiring, `_processed/` archival | `feat/ingest` contract |
+| 3   | `feat/capture`    | pipeline-engineer | `/akasha-capture` skill for cmdc-native quick capture to Inbox                  | Sprint 1               |
 
-**Merge order:** `ingest` → `vision` → `sprint-2` → `main`.
-**Acceptance:** dropping one typed note + one math photo in `Inbox/`, then running `akasha-nightly.sh`, yields two linked Knowledge notes (math one in LaTeX), an updated `_index.md`, both sources in `_processed/`, and a re-run creates no duplicates.
+**Merge order:** `ingest` → `vision` → `capture` → `sprint-2` → `main`.
+**Acceptance:** dropping one typed note + one math photo in `Inbox/`, then running `/akasha-nightly`, yields two linked Knowledge notes (math one in LaTeX), an updated `_index.md`, both sources in `_processed/`, and a re-run creates no duplicates. `/akasha-capture "test note"` creates a file in `Inbox/` that gets processed on the next nightly run.
 
 ### Sprint 2.5 — Adopt existing vault (one-shot)
 
 | #   | Worktree / branch | Owner             | Scope                                                                                 | Depends on              |
 | --- | ----------------- | ----------------- | ------------------------------------------------------------------------------------- | ----------------------- |
-| 1   | `feat/adopt`      | pipeline-engineer | `akasha-adopt` agent, mapping report, non-destructive migration of the existing vault | Sprint 2 (needs ingest) |
+| 1   | `feat/adopt`      | pipeline-engineer | `akasha-adopt` agent, `/akasha-adopt` skill, mapping report, non-destructive migration | Sprint 2 (needs ingest) |
 
 **Merge order:** `adopt` → `sprint-2.5` → `main`.
-**Acceptance:** a dry run produces a folder→target mapping report and changes nothing; on approval the existing vault's notes land in Akasha with frontmatter backfilled, `3 - Tags` hub notes become MOCs, templates merged (none overwritten), `_domains.md` seeded from real folders — all reversible via git, no atomic-note bodies rewritten.
+**Acceptance:** a dry run produces a folder→target mapping report and changes nothing; on approval the existing vault's notes land in Akasha with frontmatter backfilled, `3 - Tags` hub notes become MOCs, templates merged (none overwritten), `_domains.md` seeded from real folders — all reversible via git, no atomic-note bodies rewritten. `/akasha-adopt` is invokable as a slash command and handles the interactive confirmation flow.
 
 ### Sprint 3 — Accountability & Review
 
 | #   | Worktree / branch | Owner                   | Scope                                                                     | Depends on    |
 | --- | ----------------- | ----------------------- | ------------------------------------------------------------------------- | ------------- |
 | 1   | `feat/streak`     | accountability-engineer | daily-note flow, `streak.md` positive tracker, floors, fried-day fallback | Sprint 1      |
-| 2   | `feat/review`     | accountability-engineer | `akasha-weekly` + `akasha-goal-align` agents, Sunday-review prompt        | `feat/streak` |
+| 2   | `feat/review`     | accountability-engineer | `akasha-weekly` + `akasha-goal-align` agents, `/akasha-review` + `/akasha-goal-check` + `/akasha-daily` skills | `feat/streak` |
 
 **Merge order:** `streak` → `review` → `sprint-3` → `main`.
-**Acceptance:** `akasha-weekly` reads the week's dailies + streak and produces the five-question review under the 15-min format; no accusing backlog is surfaced anywhere (I-2 check).
+**Acceptance:** `/akasha-daily` creates today's daily from template with carry-over from yesterday; `/akasha-review` reads the week's dailies + streak and produces the five-question review under the 15-min format; `/akasha-goal-check` audits recent dailies against goals and reports drift; no accusing backlog is surfaced anywhere (I-2 check).
 
 ### Sprint 4 — Hygiene & Query (polish)
 
 | #   | Worktree / branch | Owner            | Scope                                                             | Depends on |
 | --- | ----------------- | ---------------- | ----------------------------------------------------------------- | ---------- |
-| 1   | `feat/lint`       | hygiene-engineer | `akasha-lint` agent (orphans/dead-links/frontmatter), report-only | Sprint 2   |
-| 2   | `feat/query`      | hygiene-engineer | query prompt over `grep`/`glob` + Obsidian search, **no BM25**    | Sprint 2   |
+| 1   | `feat/lint`       | hygiene-engineer | `akasha-lint` agent, `/akasha-lint` skill (orphans/dead-links/frontmatter), report-only | Sprint 2   |
+| 2   | `feat/query`      | hygiene-engineer | `akasha-query` agent, `/akasha-search` + `/akasha-status` skills  | Sprint 2   |
 
 **Merge order:** `lint` → `query` → `sprint-4` → `main`. Final `verifier` pass → tag `v0.1`.
-**Acceptance:** `akasha-lint` flags a deliberately-orphaned note; query answers "what do I have on <topic>" by citing Knowledge pages, not training data.
+**Acceptance:** `/akasha-lint` flags a deliberately-orphaned note; `/akasha-search linear algebra` returns matching Knowledge notes with snippets; `/akasha-status` shows inbox count, streak, domain breakdown, and last nightly timestamp; all three are read-only and invokable as slash commands.
 
 **Overall merge order:** `sprint-1 → sprint-2 → sprint-2.5 → sprint-3 → sprint-4 → main`.
 
