@@ -13,6 +13,8 @@
 
 Akasha turns a single Obsidian vault into a compounding knowledge base. You capture in two rails — handwritten math photographed into the vault, typed code/concept notes straight in — and a nightly `cmd` run reads the inbox, transcribes the math to LaTeX, files everything into atomic linked notes, updates an index + hot cache, and commits. A lightweight accountability layer (daily note, positive streak, weekly review) rides alongside.
 
+A **goal cascade** (4-year vision → semester → monthly → weekly) feeds directly into the daily and nightly flows, grounding every day's plan in long-term intent. Study materials (ebook PDFs) are ingested, TOC-extracted, and used to derive semester goals with per-chapter pacing. Goals auto-adjust when deliverables slip — rescheduling forward rather than marking failure — and surface gentle nudges after repeated slips. The goal system connects to the Knowledge domain structure, so academic goals map to `math/`, `cs/`, `quant/` domains.
+
 It is built from two open-source systems, **ported** (not merged) onto commandcode:
 
 | Source repo                    | What we take                                                            | What we drop                                                     |
@@ -32,6 +34,9 @@ It is built from two open-source systems, **ported** (not merged) onto commandco
 - Nightly `cmd` run that files + links + transcribes inbox → Knowledge, idempotently.
 - Photo-of-math → LaTeX transcription as a first-class path (the Phase 1 promise).
 - Positive accountability: streak + floors + weekly review. **Never a visible accusing backlog.**
+- Goal cascade (4-year → semester → monthly → weekly) that grounds daily planning in long-term intent, with auto-adjustment when deliverables slip.
+- Study material management: PDF ingestion, TOC extraction, chapter pacing derived from materials, active/archive lifecycle per semester.
+- Goal ↔ domain mapping: academic goals linked to Knowledge domains (`math/`, `cs/`, `quant/`), creating a bridge between *what you're studying* and *what you've learned*.
 - Runs on the $1/mo plan with no VPS, no separate API bill, no always-on daemon required.
 - Degrades gracefully: if `cmd` never runs, captures still land and stay readable.
 
@@ -45,6 +50,10 @@ It is built from two open-source systems, **ported** (not merged) onto commandco
 | Methodology-mode router (LYT/PARA/Zettel)   | autonote `wiki-mode.py` | We hardcode **one** methodology — Zettelkasten + LYT (§5.0) — instead of a router you'd never reconfigure.                                          |
 | `autoresearch`, `canvas` skills             | autonote                | Out of scope for note-taking; revisit only if a real need appears.                                                                                  |
 | Fine-grained `permissions.allow/deny` lists | PKM `settings.json`     | commandcode uses permission *modes* + headless `--yolo`. Replaced by one `PreToolUse` guard hook (§5.3).                                            |
+| Effort allocation percentages | PKM `Goals/1. Yearly Goals.md` | Area weighting (e.g., 40% career, 20% health) is overengineered for a student's goal system. Priority is expressed through 3-tier Must/Should/Nice, not percentage splits. |
+| Separate "Projects" bridge layer | PKM `Projects/*/CLAUDE.md` | Akasha already has Knowledge domains as the bridge between goals and learning. A separate project layer would duplicate this. |
+| Coach-style emotional probing | PKM daily skill | "How do you want to feel at end of day?" doesn't fit Akasha's directness. Goal-setting is comprehensive but focused on deliverables, not feelings. |
+| Automatic goal rebalancing without confirmation | PKM goal-aligner | Auto-adjustment only reschedules slipped deliverables forward. Structural changes (dropping goals, changing semester scope) always require explicit confirmation. |
 
 > Door left open: any cut item can be added later as an isolated module if a concrete need surfaces. None are load-bearing for v1.
 
@@ -76,7 +85,10 @@ akasha/
 │   │   ├── akasha-lint.md
 │   │   ├── akasha-weekly.md
 │   │   ├── akasha-goal-align.md
-│   │   └── akasha-adopt.md       # one-shot existing-vault migration
+│   │   ├── akasha-goal-setter.md    # interactive goal creation at any level
+│   │   ├── akasha-goal-tracker.md   # progress calc, staleness, adjustment
+│   │   ├── akasha-material-parser.md # PDF → structured TOC
+│   │   └── akasha-adopt.md          # one-shot existing-vault migration
 │   ├── hooks/
 │   │   ├── auto-commit.sh        # ported from PKM
 │   │   └── raw-guard.sh          # replaces permission lists
@@ -89,6 +101,14 @@ akasha/
 │       │   └── SKILL.md
 │       ├── akasha-goal-check/
 │       │   └── SKILL.md
+│       ├── akasha-goal-set/
+│       │   └── SKILL.md           # comprehensive goal-setting (any level)
+│       ├── akasha-goal-adjust/
+│       │   └── SKILL.md           # deliverable rescheduling + pattern surfacing
+│       ├── akasha-material-ingest/
+│       │   └── SKILL.md           # PDF → TOC extraction
+│       ├── akasha-semester-setup/
+│       │   └── SKILL.md           # new semester init + archive previous
 │       ├── akasha-adopt/
 │       │   └── SKILL.md
 │       ├── akasha-search/
@@ -102,9 +122,12 @@ akasha/
 ├── AGENTS.md                     # bootstrap + conventions (was SessionStart)
 ├── bin/
 │   ├── akasha-nightly.sh         # headless entrypoint
+│   ├── pdf-extract.sh            # PDF TOC/text extraction helper (pdftotext + pymupdf)
 │   └── prompts/
 │       ├── process-inbox.md
-│       └── update-hotcache.md
+│       ├── update-hotcache.md
+│       ├── goal-adjust.md        # nightly goal adjustment prompt
+│       └── semester-archive.md   # archive previous semester materials
 ├── Inbox/                        # capture drop zone
 │   └── _processed/               # raw sources after ingest (immutable archive)
 ├── Knowledge/                    # generated atomic notes (agent-owned)
@@ -113,6 +136,26 @@ akasha/
 │   ├── quant/                    # examples; driven by _domains.md approved list
 │   ├── _domains.md               # domain registry (controlled vocabulary)
 │   └── _index.md                 # master index (+ MOC list)
+├── Goals/                        # goal cascade (§5.8)
+│   ├── 4year/
+│   │   └── vision.md             # 4-year college vision, 6 life areas
+│   ├── semester/
+│   │   ├── 2026-fall.md          # semester goals, material references
+│   │   └── 2026-summer.md        # summer study (if applicable)
+│   ├── monthly/
+│   │   ├── 2026-09.md            # 3-tier: Must/Should/Nice
+│   │   └── 2026-10.md
+│   ├── weekly/
+│   │   ├── 2026-W40.md           # ONE Thing + daily targets
+│   │   └── 2026-W41.md
+│   ├── _not-doing.md             # explicit drops (protects focus)
+│   └── _goal-domain-map.md       # goal ↔ Knowledge domain mapping
+├── StudyMaterials/               # ebook/resource management (§5.9)
+│   ├── inbox/                    # drop PDFs here
+│   ├── active/                   # current semester's extracted TOCs
+│   ├── pdfs/                     # full PDFs for active semester (agent reference)
+│   └── archive/                  # past semesters
+│       └── 2025-fall/
 ├── Daily/                        # tonight-only plan + streak line
 ├── Reviews/                      # weekly / Sunday reviews
 ├── Templates/                    # concept, math, source, entity, question, moc, daily, weekly
@@ -206,7 +249,7 @@ payload=$(cat)
 cwd=$(printf '%s' "$payload" | jq -r '.cwd')
 cd "$cwd" || exit 0
 [ -d .git ] || exit 0
-git add -- Knowledge/ Inbox/ Daily/ Reviews/ .akasha/ 2>/dev/null || true
+git add -- Knowledge/ Inbox/ Daily/ Reviews/ Goals/ StudyMaterials/ .akasha/ 2>/dev/null || true
 git diff --cached --quiet && exit 0
 git commit -q -m "akasha: auto-commit $(date '+%Y-%m-%d %H:%M')" || true
 ```
@@ -252,8 +295,9 @@ Because there is no `SessionStart` hook, bootstrap lives here:
 
 - `Daily/<date>.md` — tonight-only plan: top-3, energy tag, fried-day fallback reminder. (Matches Phase 0 design exactly.)
 - `.akasha/streak.md` — positive yes/no log for the three floors (study / move / consume). No backlog, no accusing pile.
-- `akasha-weekly` agent — the 15-min Sunday review, five fixed questions.
-- `akasha-goal-align` agent — audits recent dailies against the cert/math goal; flags drift. Read-only.
+- `akasha-weekly` agent — the 15-min Sunday review, five fixed questions. Now includes goal progress table and Start/Stop/Continue from the cascade.
+- `akasha-goal-align` agent — audits recent dailies against active goals across all levels. Checks goal ↔ domain mapping for academic goals. Reports drift with specific daily entries as evidence. Read-only.
+- `akasha-goal-tracker` agent — progress calculation, staleness detection, deliverable auto-adjustment. Runs during `/akasha-nightly` and on-demand via `/akasha-goal-adjust`.
 
 ### 5.6 `akasha-adopt` (one-shot existing-vault migration)
 
@@ -298,14 +342,14 @@ Default mapping for the current vault (folder `4` was collapsed in the screensho
 
 All user-facing operations are invoked as slash commands. Skills either wrap an existing agent or compose multiple agents/scripts into a single workflow. No shell commands required.
 
-#### `/akasha-nightly` — run the ingest pipeline
+#### `/akasha-nightly` — run the ingest pipeline + goal adjustment
 
-Wraps the headless `cmd` calls from §6.2. Delegates to `akasha-ingest` for each Inbox item, then updates the hot cache.
+Wraps the headless `cmd` calls from §6.2. Delegates to `akasha-ingest` for each Inbox item, then runs goal adjustment, then updates the hot cache.
 
 - **When:** End of day, anchored to the nightly planning ritual.
-- **Input:** None — reads everything in `Inbox/` (excluding `_processed/`).
-- **Output:** Summary — items processed, notes created/updated, domains touched, any proposed domains. Errors surfaced immediately with log tails.
-- **Edge cases:** Empty Inbox → "Nothing to process." Already-processed items → skipped (idempotent). Agent error → surfaces which item failed and why, continues with remaining items.
+- **Input:** None — reads everything in `Inbox/` (excluding `_processed/`), plus current week's deliverables.
+- **Output:** Summary — items processed, notes created/updated, domains touched, any proposed domains. Plus goal adjustment summary: deliverables rescheduled, patterns flagged, staleness warnings. Errors surfaced immediately with log tails.
+- **Edge cases:** Empty Inbox → "Nothing to process." Already-processed items → skipped (idempotent). Agent error → surfaces which item failed and why, continues with remaining items. No active goals → skips goal adjustment silently.
 
 #### `/akasha-lint` — vault hygiene check
 
@@ -319,20 +363,20 @@ Runs the `akasha-lint` agent for read-only health checks.
 
 #### `/akasha-review` — weekly Sunday review
 
-Runs the `akasha-weekly` agent to produce a structured weekly review.
+Runs the `akasha-weekly` agent to produce a structured weekly review with goal cascade integration.
 
 - **When:** Sunday (or whenever you want to do a weekly review). Part of the weekly planning ritual.
-- **Input:** Reads the week's `Daily/*.md` files and `.akasha/streak.md`.
-- **Output:** Creates `Reviews/YYYY-WXX.md` from the weekly template. The agent reads your week and prompts you with five fixed questions (from the PKM accountability cascade). You answer interactively; the agent fills in the review note.
-- **Behavior:** Carries over any unfinished top-3 items from the week's dailies. Highlights streak breaks. Flags if any daily notes are missing (gaps in the week).
-- **Edge cases:** No dailies this week → prompts you to reflect on why, no judgment. Review already exists → appends to it rather than overwriting.
+- **Input:** Reads the week's `Daily/*.md` files, `.akasha/streak.md`, current weekly deliverables, and monthly goals.
+- **Output:** Creates `Reviews/YYYY-WXX.md` from the weekly template. The agent reads your week and prompts you with five fixed questions (from the PKM accountability cascade). You answer interactively; the agent fills in the review note. Includes a **goal progress table** showing deliverable completion rates and a **Start/Stop/Continue** section for rebalancing.
+- **Behavior:** Carries over any unfinished top-3 items from the week's dailies. Highlights streak breaks. Flags if any daily notes are missing (gaps in the week). Rolls up goal deliverable status. Detects patterns across weeks (consistently avoided work, energy trends).
+- **Edge cases:** No dailies this week → prompts you to reflect on why, no judgment. Review already exists → appends to it rather than overwriting. No active goals → skips goal progress table.
 
 #### `/akasha-goal-check` — goal alignment audit
 
 Runs the `akasha-goal-align` agent to check progress against stated goals.
 
 - **When:** Weekly or biweekly, during review or standalone.
-- **Input:** Reads recent `Daily/*.md` (last 7–14 days), `Reviews/*.md`, and the goal definitions (from `AGENTS.md` or a goals file).
+- **Input:** Reads recent `Daily/*.md` (last 7–14 days), `Reviews/*.md`, and the goal cascade (`Goals/4year/`, `Goals/semester/`, `Goals/monthly/`).
 - **Output:** Read-only report — which goals are on track, which are drifting, with specific daily entries as evidence. Suggests adjustments but takes no action.
 - **Behavior:** Informational only. No side effects, no file writes. Designed to be fast and non-intrusive.
 - **Edge cases:** No recent dailies → reports insufficient data. No goals defined → prompts you to set some.
@@ -372,18 +416,20 @@ Shows the current state of the Akasha system at a glance.
 - **Behavior:** Read-only, instant, no side effects. Pulls from multiple files but writes nothing.
 - **Edge cases:** First run (no data yet) → shows zeros and onboarding hints. Missing files (no streak.md yet) → shows "not initialized" for that section.
 
-#### `/akasha-daily` — create today's daily note
+#### `/akasha-daily` — create today's daily note (goal-grounded)
 
-Scaffolds today's daily note from the template.
+Scaffolds today's daily note from the template, grounded in the goal cascade.
 
 - **When:** Start of day, or when you want to plan. Part of the daily planning ritual.
-- **Input:** None — uses today's date.
+- **Input:** None — uses today's date. Reads goal cascade (weekly deliverables → monthly goals → semester goal) and `.akasha/hot.md`.
 - **Output:** Creates `Daily/YYYY-MM-DD.md` from the daily template. Pre-populates:
+  - **Cascade context block** — surfaces the week's ONE Thing, monthly Must/Should priorities, and any material chapters in progress
+  - **Suggestions for today** — 1–3 items derived from weekly deliverables (what's due, what was unfinished yesterday, what hasn't been touched in a while). These are prompts, not assignments.
   - Carries over unfinished top-3 items from yesterday's daily (items without checkmarks)
   - Reads `.akasha/hot.md` for recent context
   - Leaves energy tag and new top-3 for you to fill in
-- **Behavior:** Idempotent — if today's daily already exists, opens it instead of creating a duplicate. Never overwrites existing content.
-- **Edge cases:** No yesterday daily → creates fresh with empty top-3. Yesterday had no unfinished items → empty carry-over section.
+- **Behavior:** Idempotent — if today's daily already exists, opens it instead of creating a duplicate. Never overwrites existing content. Suggestions are informational — you choose what to adopt.
+- **Edge cases:** No yesterday daily → creates fresh with empty top-3. Yesterday had no unfinished items → empty carry-over section. No active goals → shows cascade context as "No active goals" and skips suggestions.
 
 #### `/akasha-capture "text"` — quick capture to inbox
 
@@ -394,6 +440,354 @@ Appends a quick typed note to the Inbox without opening Obsidian.
 - **Output:** Creates a new file in `Inbox/` with a timestamp-based filename (e.g., `2025-01-15T14-30-00.md`) containing the text. Minimal frontmatter (date, status: seed).
 - **Behavior:** Quick, one-shot, no interaction needed. This is the cmdc-native capture rail — complements the photo sync rail (math/photos) and direct Obsidian typing (code/concepts).
 - **Edge cases:** Multi-line text → handled gracefully, preserves formatting. Empty input → prompts for content. This rail is text-only; images still go through the photo sync path.
+
+#### `/akasha-goal-set <level> [file]` — comprehensive goal-setting
+
+Interactive goal creation at any level of the cascade. Supports both file ingestion and CLI brainstorming.
+
+- **When:** Setting up a new 4-year vision, starting a semester, planning a month, or planning a week. Also when ingesting a goal document from a file.
+- **Input:** Level (`4year`, `semester`, `monthly`, `weekly`) and optionally a file path (markdown or PDF).
+- **Output:** Creates or updates the appropriate goal file in `Goals/`. For file ingestion: parses the file into the universal YAML structure. For CLI brainstorming: comprehensive interactive conversation that walks through each section.
+- **Behavior:** Always reads cascade context first (surfaces what already exists). For semester level and above, produces a proposal and stops for confirmation before writing. For file ingestion, asks "Adopt wholly or adjust?" — if adjust, runs a guided conversation to modify the file's content before structuring it.
+- **Edge cases:** Goal already exists at that level → offers to update rather than overwrite. PDF file → calls `bin/pdf-extract.sh` for text extraction, then parses content. No cascade context (first time) → creates from scratch with guided prompts.
+
+#### `/akasha-goal-adjust` — deliverable rescheduling + pattern surfacing
+
+Runs the `akasha-goal-tracker` agent to adjust slipped deliverables and surface patterns.
+
+- **When:** After `/akasha-nightly` (automatically), or on-demand when you want to rebalance.
+- **Input:** Current week's deliverables, today's daily note.
+- **Output:** Adjustment summary — which deliverables were rescheduled, which were flagged (3+ slips), staleness warnings, Start/Stop/Continue if >50% slipped. Updates weekly goal file with new due dates.
+- **Behavior:** Auto-reschedules forward. Never marks as "failed." Surfaces patterns gently. If structural changes are needed (dropping a goal, changing semester scope), stops for confirmation.
+- **Edge cases:** No active weekly goal → "No weekly deliverables to adjust." All deliverables done → "All clear."
+
+#### `/akasha-material-ingest` — PDF → structured TOC
+
+Extracts table of contents from a PDF ebook and creates a structured material note.
+
+- **When:** When adding a new study material for the semester. Drop the PDF in `StudyMaterials/inbox/` first.
+- **Input:** PDF filename (or scans `inbox/` if not specified).
+- **Output:** Creates `StudyMaterials/active/<material-name>.md` with extracted TOC, per-chapter page counts, and difficulty estimates. Moves PDF to `StudyMaterials/pdfs/`.
+- **Behavior:** Uses `bin/pdf-extract.sh` for TOC extraction. Presents structured TOC to user for confirmation/adjustment before writing. Difficulty is estimated (page count + content complexity) and user-confirmed.
+- **Edge cases:** PDF has no built-in TOC → falls back to text extraction + agent-based chapter identification. PDF already ingested → warns and offers to update existing material file.
+
+#### `/akasha-semester-setup` — new semester initialization
+
+Archives previous semester materials and sets up a new term.
+
+- **When:** Start of a new semester or summer term.
+- **Input:** Term name (e.g., `2027-spring`).
+- **Output:** Archives `StudyMaterials/active/` + `pdfs/` to `archive/<previous-term>/`, clears active directories, creates new semester goal file (`Goals/semester/<term>.md`), prompts for materials.
+- **Behavior:** Multi-step interactive process. First archives (non-destructive — files move, not delete). Then reads 4-year vision and last semester's goal to propose the new semester's focus. Asks about course load, commitments, materials. If PDFs are already in `inbox/`, offers to run `/akasha-material-ingest` for each.
+- **Edge cases:** No previous semester → skips archive step. Previous semester not completed → warns about unfinished goals, asks which to carry forward vs. drop.
+
+### 5.8 Goal cascade (ported from PKM, adapted for college lifecycle)
+
+A **4-level goal cascade** grounded in the 4-year college timeline. Each level is a Markdown file with YAML frontmatter, connected by `[[wikilinks]]` up the cascade. Six life areas: **academic**, **career**, **health**, **relationships**, **soul**, **financial**. Academic goals map to Knowledge domains via `_goal-domain-map.md`.
+
+```
+4-year vision (Goals/4year/vision.md)
+  ↓ decomposed into
+Semester goal (Goals/semester/<term>.md) ← references StudyMaterials/active/
+  ↓ decomposed into
+Monthly goals (Goals/monthly/YYYY-MM.md) — 3-tier: Must/Should/Nice
+  ↓ decomposed into
+Weekly deliverables (Goals/weekly/YYYY-WXX.md) — ONE Thing + daily targets
+  ↓ surfaces into
+Daily (/akasha-daily suggestions + /akasha-nightly adjustment)
+```
+
+#### Goal data model (universal across all levels)
+
+```yaml
+---
+type: goal
+level: 4year | semester | monthly | weekly
+area: academic | career | health | relationships | soul | financial
+status: active | paused | completed | dropped
+term: "2026-fall"              # semester-level and below
+deadline: YYYY-MM-DD           # hard deadlines (exams, certs) — optional
+supports: [[parent goal]]      # wikilink up the cascade
+domain: math | cs | quant      # academic goals only — maps to Knowledge/
+material: [[material-file]]    # optional — links to StudyMaterials/active/
+progress: 0-100                # auto-calculated from deliverables
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+## Deliverables (system-managed)
+<!-- YAML-driven, agent-managed. Statuses: pending, done, slipped, rescheduled -->
+- [ ] Finish chapters 1–3 of Strang — due: 2026-09-15
+- [ ] Problem sets 1–4 — due: 2026-09-22
+
+## Notes (manual)
+<!-- Checkbox-based sub-tasks you add yourself. Agents don't touch these. -->
+- [ ] Review lecture notes from Tuesday
+```
+
+**Hybrid tracking:** YAML frontmatter + deliverables section is system-managed (agents parse, adjust, reschedule). The `## Notes` section is human-only — manual checkboxes for sub-tasks. Agents never modify manual notes.
+
+#### Level-specific structures
+
+**4-year vision** (`Goals/4year/vision.md`): One file. Life-area vision statements, year-by-year milestones (Year 1–4), quarterly reflection questions. Reviewed once per semester. No deliverables — this is directional, not actionable.
+
+**Semester goal** (`Goals/semester/<term>.md`): One file per term (e.g., `2026-fall.md`, `2026-summer.md`). Course load, study commitments, material references (`material: [[strang-linear-algebra]]`), monthly breakdown. Summer terms are first-class — same structure, lighter load.
+
+**Monthly goal** (`Goals/monthly/YYYY-MM.md`): 3-tier priority system:
+- **Must Complete** — non-negotiable, deadline-driven (exams, assignment due dates)
+- **Should Complete** — important but flexible (chapter completion, problem sets)
+- **Nice to Complete** — stretch goals (extra reading, side projects)
+
+Each item has a `due` date and `status`. Weekly milestones within the month.
+
+**Weekly deliverables** (`Goals/weekly/YYYY-WXX.md`): ONE Thing (the single most important deliverable), daily targets derived from monthly goals. This is where auto-adjustment lives — slipped items get rescheduled forward.
+
+#### Goal ↔ domain mapping
+
+`Goals/_goal-domain-map.md` maps academic goals to Knowledge domains:
+
+```markdown
+| Goal | Domain | Subarea |
+|------|--------|---------|
+| Linear Algebra (Strang) | math | linear-algebra |
+| AWS AI Practitioner | cs | cloud/ai |
+| Probability Theory | quant | probability |
+```
+
+This creates a bridge: the goal system says *what to study*, the Knowledge system captures *what you've learned*. When reviewing a goal, the agent can check how many Knowledge notes exist in the linked domain to gauge actual learning progress.
+
+#### Adjustment rules
+
+- **Slipped deliverables** → rescheduled to tomorrow or next available slot. Status changes from `pending` to `slipped`, then `rescheduled` with new `due` date.
+- **3+ slips on same deliverable** → flagged as "needs rescheduling." Agent suggests moving to a different week or lowering priority tier. Requires explicit confirmation.
+- **Weekly deliverables >50% slipped** → agent surfaces Start/Stop/Continue prompt during nightly. No automatic structural changes.
+- **14-day staleness** → goals untouched for 14+ days get a gentle nudge: "This goal hasn't had activity in 2 weeks. Still relevant?"
+- **Never marked "failed"** — only `pending`, `done`, `slipped`, `rescheduled`. Dropped goals get `status: dropped` with an explicit note in `_not-doing.md`.
+
+#### Cascade context surfacing
+
+Before any goal-setting or daily interaction, the agent reads *up* the cascade and displays context:
+
+```markdown
+### Cascade Context
+- **4-year vision:** [area summary from vision.md]
+- **This semester:** [active semester goal, materials in use]
+- **This month:** [Must/Should/Nice priorities]
+- **This week:** [ONE Thing + deliverable count]
+```
+
+This ensures every decision is grounded in long-term intent.
+
+### 5.9 Study materials system
+
+Manages ebook PDFs and their extracted structure. Materials are semester-scoped — active during a term, archived when a new semester starts.
+
+#### Directory structure
+
+```
+StudyMaterials/
+├── inbox/              # drop PDFs here (raw intake)
+├── active/             # extracted TOC + metadata files (current semester)
+├── pdfs/               # full PDFs for active semester (agent reference)
+└── archive/            # past semesters
+    └── 2025-fall/
+```
+
+#### Material data model (`StudyMaterials/active/*.md`)
+
+```yaml
+---
+type: material
+title: "Linear Algebra and Its Applications"
+author: "Gilbert Strang"
+source: strang-linear-algebra.pdf    # filename in pdfs/
+term: "2026-fall"
+status: active | completed | archived
+chapters_total: 12
+chapters_covered: 0
+difficulty_estimate: medium          # overall: easy | medium | hard
+---
+
+## Table of Contents
+
+| # | Title | Pages | Difficulty | Status |
+|---|-------|-------|-----------|--------|
+| 1 | Introduction to Vectors | 1–22 (22p) | easy | not started |
+| 2 | Solving Linear Equations | 23–58 (36p) | medium | not started |
+| 3 | Vector Spaces and Subspaces | 59–94 (36p) | hard | not started |
+| ... | ... | ... | ... | ... |
+
+## Notes
+<!-- Agent or user notes about pacing, difficulty adjustments, etc. -->
+```
+
+#### Difficulty estimation
+
+The `akasha-material-parser` agent estimates per-chapter difficulty using two signals:
+
+1. **Page count** — longer chapters need more time (primary signal)
+2. **Content complexity** — chapters dense with theorems/proofs or new notation are harder than review/application chapters
+
+The agent proposes difficulty; the user confirms or adjusts during ingestion. Difficulty drives pacing — hard chapters get more weekly deliverable slots. Pacing adjusts automatically when the user falls behind (§5.8 adjustment rules).
+
+#### Semester lifecycle
+
+**Active semester:** PDFs in `StudyMaterials/pdfs/`, TOCs in `StudyMaterials/active/`. Semester goal files reference materials via `material: [[material-file]]` frontmatter.
+
+**Semester transition** (`/akasha-semester-setup`):
+1. Archive current `active/` + `pdfs/` → `archive/<previous-term>/`
+2. Clear `active/` and `pdfs/` for new term
+3. Prompt for new materials (PDFs already in `inbox/` or to be added)
+4. Extract TOCs for new materials
+5. Create new semester goal file with material references
+
+### 5.10 PDF parsing helper
+
+Because open-source models cannot read PDFs natively, a shell helper extracts text and TOC structure from ebook PDFs.
+
+**Dependencies:** `pdftotext` (from `poppler-utils`) for text extraction, `python3` + `pymupdf` (`pip install pymupdf`) for TOC/bookmark extraction.
+
+**`bin/pdf-extract.sh`** — two modes:
+
+```bash
+# Extract TOC (bookmarks/outline) → JSON
+./bin/pdf-extract.sh toc input.pdf
+# Output: [{"level": 1, "title": "Chapter 1: Vectors", "page": 1}, ...]
+
+# Extract full text (for agent reading)
+./bin/pdf-extract.sh text input.pdf
+# Output: plain text to stdout, layout-preserved
+```
+
+**TOC extraction priority:**
+1. Try PDF built-in bookmarks/outline (fastest, most reliable)
+2. If no bookmarks, fall back to text extraction + agent-based TOC parsing (reads first few pages of each chapter to identify structure)
+
+The `akasha-material-parser` agent calls this helper, then structures the output into the material data model (§5.9). If the PDF has no built-in TOC, the agent reads the extracted text and identifies chapter boundaries from headings, page numbering patterns, and content shifts.
+
+### 5.11 Goal-related agents
+
+#### `akasha-goal-setter` — interactive goal creation
+
+```markdown
+---
+name: akasha-goal-setter
+description: Create or modify goals at any level (4-year, semester, monthly, weekly). Reads cascade context, asks level-appropriate questions, decomposes higher-level goals into deliverables. Supports both file ingestion and CLI brainstorming.
+tools: read_file, write_file, edit_file, glob, grep, shell_command, think
+---
+You help set goals at any level of the 4-year → semester → monthly → weekly cascade.
+
+Process (adapts based on level):
+
+FOR 4-YEAR VISION:
+1. Read existing vision (if any). Ask about each life area: academic, career,
+   health, relationships, soul, financial.
+2. For academic: "What are you studying? What's the end goal? What skills do
+   you want by graduation?"
+3. Produce vision.md with year-by-year milestones.
+
+FOR SEMESTER:
+1. Read 4-year vision. Read last semester's goal (if any).
+2. Ask: "What courses/commitments this term? Any self-study? What materials
+   will you use?"
+3. If materials exist in StudyMaterials/active/, reference their TOCs.
+4. Propose semester goal with monthly breakdown. STOP for confirmation.
+5. On approval, create Goals/semester/<term>.md with material references.
+
+FOR MONTHLY:
+1. Read semester goal. Read study material TOCs for pacing context.
+2. Identify what's due this month (exams, assignments, deadlines).
+3. Propose Must/Should/Nice deliverables with due dates.
+4. Create Goals/monthly/YYYY-MM.md.
+
+FOR WEEKLY:
+1. Read monthly goal. Read last week's deliverables + completion status.
+2. Identify the ONE Thing for this week.
+3. Derive daily targets from monthly Must/Should items.
+4. Auto-adjust: carry forward any slipped items from last week.
+5. Create Goals/weekly/YYYY-WXX.md.
+
+FILE INGESTION MODE:
+1. Read the provided file (markdown or PDF).
+2. Ask: "Adopt wholly or adjust?"
+3. If adopt: parse into universal YAML structure, place in correct Goals/
+   subdirectory.
+4. If adjust: guided conversation — agent asks which parts to keep/modify/drop,
+   proposes changes, gets confirmation.
+
+CLI BRAINSTORMING MODE:
+Full interactive conversation. Reads cascade context first, then walks through
+each section of the goal file. Comprehensive — covers all fields, suggests
+deliverables, estimates pacing from materials, asks probing questions about
+commitments and capacity.
+
+Never: create goals without reading cascade context first, auto-create domain
+folders, or skip confirmation for semester-level and above.
+```
+
+#### `akasha-goal-tracker` — progress and adjustment
+
+```markdown
+---
+name: akasha-goal-tracker
+description: Track goal progress, detect staleness, adjust slipped deliverables, and surface patterns. Runs during nightly and on-demand.
+tools: read_file, write_file, edit_file, glob, grep, shell_command, think
+---
+You track goal progress and handle deliverable adjustment.
+
+Process:
+1. Read current week's deliverables (Goals/weekly/).
+2. Read today's daily note (Daily/) for completed items.
+3. For each deliverable:
+   - If done → mark with status: done
+   - If missed and first time → reschedule to tomorrow, status: rescheduled
+   - If missed 3+ times → flag: "needs rescheduling" — suggest different week
+     or lower priority tier
+4. Update weekly progress percentage.
+5. Check 14-day staleness across all active goals.
+6. If >50% weekly deliverables slipped → surface Start/Stop/Continue:
+   - Start: what to add (under-served goals)
+   - Stop: what to drop (misaligned activity)
+   - Continue: what's working
+7. Check goal-domain mapping: for academic goals, count Knowledge notes in
+   linked domain to gauge actual learning progress.
+
+Output: adjustment summary (rescheduled count, flagged items, staleness
+warnings, alignment notes). Written to .akasha/hot.md for session continuity.
+
+Never: mark deliverables as "failed", delete dropped goals without moving them
+to _not-doing.md, or make structural changes to semester goals without
+explicit confirmation.
+```
+
+#### `akasha-material-parser` — PDF → structured TOC
+
+```markdown
+---
+name: akasha-material-parser
+description: Extract table of contents from a PDF ebook, estimate per-chapter difficulty, and create a structured material note in StudyMaterials/active/. Also moves the PDF to StudyMaterials/pdfs/.
+tools: read_file, write_file, edit_file, glob, grep, shell_command, think
+---
+You extract structure from ebook PDFs for semester goal planning.
+
+Process:
+1. Run bin/pdf-extract.sh toc <pdf> to get bookmarks/outline.
+2. If TOC exists: structure into the material data model with page counts and
+   per-chapter difficulty estimates.
+3. If no TOC: run bin/pdf-extract.sh text <pdf>, read the extracted text,
+   identify chapter boundaries from headings and content structure.
+4. Estimate per-chapter difficulty:
+   - Page count: >40 pages = harder, <20 pages = easier
+   - Content signals: heavy theorem/proof density = hard, review/application =
+     easier
+5. Present the structured TOC to the user for confirmation/adjustment.
+6. On approval: create StudyMaterials/active/<material-name>.md
+7. Move the PDF from StudyMaterials/inbox/ to StudyMaterials/pdfs/.
+8. Report: title, author, chapter count, difficulty distribution, total pages.
+
+Never: overwrite an existing material file, skip the confirmation step, or
+estimate difficulty without showing the basis for the estimate.
+```
 
 ---
 
@@ -410,17 +804,20 @@ The nightly pipeline is wrapped in a skill so it's invokable as a slash command 
 
 **Invocation:** `/akasha-nightly` (or `/akasha-nightly` typed in any cmdc session in the vault).
 
-**Under the hood**, the skill runs two headless `cmd` calls sequentially:
+**Under the hood**, the skill runs three headless `cmd` calls sequentially:
 
 ```bash
 cd "$HOME/akasha"
 cmd -p "$(cat bin/prompts/process-inbox.md)"   --yolo --skip-onboarding --max-turns 60
+cmd -p "$(cat bin/prompts/goal-adjust.md)"     --yolo --skip-onboarding --max-turns 15
 cmd -p "$(cat bin/prompts/update-hotcache.md)" --yolo --skip-onboarding --max-turns 8
 ```
 
 `process-inbox.md` instructs the main session: *"List every file in `Inbox/` (excluding `_processed/`). For each, delegate to the `akasha-ingest` agent. After all are filed, update `Knowledge/_index.md`."* (Delegation works headlessly; slash commands don't — hence prompt-driven, not `/skill`-driven.)
 
-**Error surfacing:** The skill captures exit codes and stderr from both `cmd` runs. If either fails, it surfaces the error summary to the user — e.g. which agent errored, how many items processed before failure, and the relevant log tail. No silent failures.
+`goal-adjust.md` instructs: *"Read `Goals/weekly/` for the current week. Read today's `Daily/` note. For each pending deliverable, check if it was completed. Reschedule slipped items forward. Flag items slipped 3+ times. If >50% slipped, surface Start/Stop/Continue. Update the weekly goal file."*
+
+**Error surfacing:** The skill captures exit codes and stderr from all three `cmd` runs. If any fails, it surfaces the error summary to the user — e.g. which agent errored, how many items processed before failure, and the relevant log tail. No silent failures.
 
 **Trigger: manual, anchored to the 10:00 planning ritual — not cron.** A commuter laptop isn't reliably on at 11pm, and an invisible daemon is exactly the kind of ignorable plumbing that died before. Running `/akasha-nightly` as the last step of the existing nightly planning peg keeps it rhythm-based and keeps you in the loop. Cron/launchd is an optional later add, not a dependency.
 
@@ -429,6 +826,55 @@ cmd -p "$(cat bin/prompts/update-hotcache.md)" --yolo --skip-onboarding --max-tu
 ### 6.3 Hygiene (weekly, opt-in)
 
 `akasha-lint` (ported autonote `wiki-lint`, stripped of DragonScale checks): orphans, dead `[[links]]`, missing frontmatter, empty sections, stale `seed` notes >30d. **Reports only, never auto-fixes.** Run it as part of the Sunday review.
+
+### 6.4 Goal-setting flow
+
+Goals are set via `/akasha-goal-set <level> [file]`. Two input modes, one output structure.
+
+**CLI brainstorming (comprehensive):**
+1. Agent reads cascade context (what exists above the target level).
+2. For semester: asks about courses, commitments, materials, capacity.
+3. For monthly: reads semester goal + material TOCs, identifies deadlines, proposes Must/Should/Nice.
+4. For weekly: reads monthly goal, last week's deliverables, identifies ONE Thing, derives daily targets.
+5. Agent proposes the full goal file. User confirms or adjusts. File is written.
+
+**File ingestion:**
+1. User provides file path (markdown or PDF).
+2. Agent reads content (PDF via `bin/pdf-extract.sh text`).
+3. Asks: "Adopt wholly or adjust?"
+4. If adopt: parses into universal YAML structure, places in correct `Goals/` subdirectory.
+5. If adjust: guided conversation — agent asks which parts to keep/modify/drop, proposes changes, gets confirmation.
+
+### 6.5 Daily goal integration
+
+**Morning (`/akasha-daily`):**
+1. Read current week's deliverables (`Goals/weekly/`).
+2. Read current month's Must/Should priorities (`Goals/monthly/`).
+3. Read `.akasha/hot.md` for recent context.
+4. Surface cascade context block + 1–3 suggestions ("you might focus on today").
+5. Carry over unfinished items from yesterday.
+6. Scaffold daily note.
+
+**Evening (`/akasha-nightly`):**
+1. Process inbox (existing flow).
+2. Run goal adjustment: check today's daily for completed deliverables, reschedule slipped items.
+3. Update hot cache with adjustment summary.
+4. Auto-commit.
+
+The suggestions are prompts, not assignments. The adjustment is quiet — reschedule forward, no failure markers.
+
+### 6.6 Semester transition flow
+
+Via `/akasha-semester-setup <term>`:
+
+1. Archive current materials: `StudyMaterials/active/` + `pdfs/` → `archive/<previous-term>/` (uses `bin/prompts/semester-archive.md` for headless execution).
+2. Read 4-year vision + last semester's goal.
+3. Ask: "What's the focus this term? Course load? Materials?"
+4. If PDFs in `inbox/`: offer to run `/akasha-material-ingest` for each.
+5. Create semester goal file with monthly breakdown and material references.
+6. Generate first monthly goal with Must/Should/Nice deliverables.
+
+Summer terms follow the same flow — they're just another semester entry with lighter expected load.
 
 ---
 
@@ -439,6 +885,9 @@ cmd -p "$(cat bin/prompts/update-hotcache.md)" --yolo --skip-onboarding --max-tu
 - **I-3 — One home.** No split-by-mood. Rails split by *content type* only (photo-math vs typed-code), both landing in one vault.
 - **I-4 — Idempotent ingest.** Re-running on an already-filed source updates, never duplicates (index check in `akasha-ingest` step 2).
 - **I-5 — Raw sources immutable.** Enforced by `raw-guard.sh`, not by trust.
+- **I-6 — Goals suggest, never dictate.** Daily suggestions from the goal cascade are prompts, not assignments. You choose what to adopt. The system never blocks or warns if you ignore a suggestion.
+- **I-7 — No failure markers.** Deliverables are `pending`, `done`, `slipped`, or `rescheduled` — never "failed" or "missed." Dropped goals go to `_not-doing.md` with an explicit note, not a deletion.
+- **I-8 — Structural changes require confirmation.** Auto-adjustment only reschedules deliverables forward. Dropping goals, changing semester scope, or modifying the 4-year vision always requires explicit user confirmation.
 
 ---
 
@@ -452,6 +901,7 @@ cmd -p "$(cat bin/prompts/update-hotcache.md)" --yolo --skip-onboarding --max-tu
 | `harness-engineer`        | `.commandcode/` config, hooks, `AGENTS.md`, `bin/` wrappers             |
 | `pipeline-engineer`       | `akasha-ingest`, process-inbox prompt, image→LaTeX path, `akasha-adopt` |
 | `accountability-engineer` | daily/streak/floors, `akasha-weekly`, `akasha-goal-align`               |
+| `goals-engineer`          | goal cascade, study materials, PDF parsing, `akasha-goal-setter`, `akasha-goal-tracker`, `akasha-material-parser` |
 | `hygiene-engineer`        | `akasha-lint`, lightweight query prompt                                 |
 | `verifier`                | read-only pre-merge audit (ported from autonote `verifier.md`)          |
 
@@ -505,7 +955,7 @@ git worktree add ../akasha-harness   feat/harness
 | 2   | `feat/review`     | accountability-engineer | `akasha-weekly` + `akasha-goal-align` agents, `/akasha-review` + `/akasha-goal-check` + `/akasha-daily` skills | `feat/streak` |
 
 **Merge order:** `streak` → `review` → `sprint-3` → `main`.
-**Acceptance:** `/akasha-daily` creates today's daily from template with carry-over from yesterday; `/akasha-review` reads the week's dailies + streak and produces the five-question review under the 15-min format; `/akasha-goal-check` audits recent dailies against goals and reports drift; no accusing backlog is surfaced anywhere (I-2 check).
+**Acceptance:** `/akasha-daily` creates today's daily from template with carry-over from yesterday (cascade context surfaces "No active goals" until Sprint 5); `/akasha-review` reads the week's dailies + streak and produces the five-question review under the 15-min format; `/akasha-goal-check` audits recent dailies against goals and reports drift; no accusing backlog is surfaced anywhere (I-2 check).
 
 ### Sprint 4 — Hygiene & Query (polish)
 
@@ -514,10 +964,24 @@ git worktree add ../akasha-harness   feat/harness
 | 1   | `feat/lint`       | hygiene-engineer | `akasha-lint` agent, `/akasha-lint` skill (orphans/dead-links/frontmatter), report-only | Sprint 2   |
 | 2   | `feat/query`      | hygiene-engineer | `akasha-query` agent, `/akasha-search` + `/akasha-status` skills  | Sprint 2   |
 
-**Merge order:** `lint` → `query` → `sprint-4` → `main`. Final `verifier` pass → tag `v0.1`.
+**Merge order:** `lint` → `query` → `sprint-4` → `main`.
 **Acceptance:** `/akasha-lint` flags a deliberately-orphaned note; `/akasha-search linear algebra` returns matching Knowledge notes with snippets; `/akasha-status` shows inbox count, streak, domain breakdown, and last nightly timestamp; all three are read-only and invokable as slash commands.
 
-**Overall merge order:** `sprint-1 → sprint-2 → sprint-2.5 → sprint-3 → sprint-4 → main`.
+### Sprint 5 — Goal Cascade & Study Materials
+
+| #   | Worktree / branch    | Owner           | Scope                                                                                                | Depends on             |
+| --- | -------------------- | --------------- | ---------------------------------------------------------------------------------------------------- | ---------------------- |
+| 1   | `feat/goals`         | goals-engineer  | `Goals/` directory structure, goal YAML data model, goal templates, `_goal-domain-map.md`, `_not-doing.md` | Sprint 1               |
+| 2   | `feat/materials`     | goals-engineer  | `StudyMaterials/` structure, `bin/pdf-extract.sh`, `akasha-material-parser` agent, `/akasha-material-ingest` skill | Sprint 1               |
+| 3   | `feat/goal-setter`   | goals-engineer  | `akasha-goal-setter` agent, `/akasha-goal-set` skill (CLI brainstorming + file ingestion), cascade context surfacing | `feat/goals`           |
+| 4   | `feat/goal-tracker`  | goals-engineer  | `akasha-goal-tracker` agent, `/akasha-goal-adjust` skill, auto-adjustment logic, nightly integration | `feat/goals`           |
+| 5   | `feat/semester`      | goals-engineer  | `/akasha-semester-setup` skill, archive lifecycle, material ↔ semester linking | `feat/materials`, `feat/goal-setter` |
+| 6   | `feat/daily-goals`   | goals-engineer  | Update `/akasha-daily`, `/akasha-nightly`, and `/akasha-review` for cascade surfacing, goal adjustment, and goal progress table integration | `feat/goal-tracker`    |
+
+**Merge order:** `goals` → `materials` → `goal-setter` → `goal-tracker` → `semester` → `daily-goals` → `sprint-5` → `main`.
+**Acceptance:** `/akasha-goal-set semester` runs an interactive brainstorming session that produces a semester goal file; dropping a PDF in `StudyMaterials/inbox/` and running `/akasha-material-ingest` creates a structured TOC in `active/`; `/akasha-daily` surfaces cascade context and suggestions from weekly deliverables; `/akasha-nightly` auto-reschedules slipped deliverables; `/akasha-semester-setup` archives previous materials and creates a new semester goal; goal ↔ domain mapping connects academic goals to Knowledge domains.
+
+**Overall merge order:** `sprint-1 → sprint-2 → sprint-2.5 → sprint-3 → sprint-4 → sprint-5 → main`.
 
 > Solo-dev note: the two worktrees per sprint are *optional* parallelism. If juggling two `cmd` sessions adds friction, run them sequentially on one branch — the dependency arrows already give a safe linear order. Don't let the build orchestration become its own maintenance project.
 
@@ -529,6 +993,9 @@ git worktree add ../akasha-harness   feat/harness
 - **`--max-turns 60`** may be tight for a large Inbox; raise per run or chunk the Inbox.
 - **commandcode model choice** for vision: confirm which available model handles image input on the $1 plan before Sprint 2 (the docs list Claude Opus/Sonnet/Haiku among providers).
 - **Sync reliability** of phone→`Inbox/` is outside the harness; pick the sync mechanism (Obsidian mobile vs synced folder) before Sprint 2.
+- **PDF TOC extraction quality** varies widely. Some ebooks have clean built-in bookmarks; others have none. Mitigation: fallback to text extraction + agent-based chapter identification, but this is slower and less reliable. Test with actual study materials before Sprint 5.
+- **Difficulty estimation accuracy** — the agent's page-count + content-complexity heuristic may not match actual difficulty for a given student. Mitigation: user confirms/adjusts during ingestion; pacing auto-adjusts from real completion data over time.
+- **Goal cascade maintenance burden** — 4 levels of goal files is more surfaces to keep updated than the current streak-only system. Mitigation: auto-adjustment handles weekly deliverables; monthly and semester levels are reviewed during existing review rituals (weekly review, semester setup). The system should feel like it's working *for* you, not creating more work.
 
 ## 10. Decisions — resolved
 
@@ -539,3 +1006,9 @@ git worktree add ../akasha-harness   feat/harness
 
 **Methodology (new):** Zettelkasten + LYT MOCs, hardcoded; PARA explicitly not used in the knowledge vault (§5.0).
 **Existing vault (new):** folded in via the one-shot `akasha-adopt` agent (§5.6 / Sprint 2.5), non-destructive and reversible.
+
+**Goal cascade (new):** 4-year → semester → monthly → weekly. 6 life areas: academic, career, health, relationships, soul, financial. Academic goals map to Knowledge domains via `_goal-domain-map.md`. Hybrid tracking: YAML for system-managed deliverables, checkboxes for manual sub-tasks. No effort allocation percentages.
+**Study materials (new):** `StudyMaterials/` with `inbox/`, `active/`, `pdfs/`, `archive/`. PDF parsing via `pdftotext` + `pymupdf` (not LLM-native — open-source models can't read PDFs). TOC extraction with difficulty estimation, user-confirmed. Semester lifecycle: archive previous, setup new.
+**Auto-adjustment (new):** Slipped deliverables reschedule forward. 3+ slips → flag for rescheduling. >50% slipped → Start/Stop/Continue. Never "failed." Structural changes require confirmation.
+**Daily integration (new):** Cascade context surfacing in `/akasha-daily` (ONE Thing + monthly priorities + suggestions). Goal adjustment in `/akasha-nightly` (reschedule slipped items, update hot cache).
+**Goal areas (new):** 6 areas — academic, career, health, relationships, soul, financial. "Growth" dropped (vague). "Creativity" replaced by "soul" (broader). "Academic" added (primary study area).
