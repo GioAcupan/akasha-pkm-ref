@@ -7,11 +7,9 @@
 > **Deviation:** Built ahead of the Life-OS Phase 1 gate (original trigger: floors held ~3–4 weeks; Phase 0 not yet running). Deliberate; Invariant I-1 (agent layer is enrichment, never plumbing) is the guardrail that keeps this safe.
 > **Harness:** Command Code, `command-code` npm package, `cmdc` CLI, $1/mo plan.
 
----
-
 ## 1. Summary
 
-Akasha turns a single Obsidian vault into a compounding knowledge base. You capture in two rails — handwritten math photographed into the vault, typed code/concept notes straight in — and a nightly `cmd` run reads the inbox, transcribes the math to LaTeX, files everything into atomic linked notes, updates an index + hot cache, and commits. A lightweight accountability layer (daily note, positive streak, weekly review) rides alongside.
+Akasha turns a single Obsidian vault into a compounding knowledge base. You capture in two rails — handwritten math photographed into the vault, typed code/concept notes straight in — and a nightly `cmd` run reads the inbox, transcribes the math to LaTeX, files everything into atomic linked notes, updates an index + hot cache, and commits. A lightweight accountability layer (daily note, positive streak, weekly review) rides alongside. An automated recap system silently accumulates raw data nightly; when invoked, it produces formatted period snapshots (weekly / monthly / semester) with deliverable stats, streak data, knowledge growth, and a user-chosen "biggest win" — factual backward-looking mirrors to the review's forward-looking reflection.
 
 A **goal cascade** (4-year vision → semester → monthly → weekly) feeds directly into the daily and nightly flows, grounding every day's plan in long-term intent. Study materials (ebook PDFs) are ingested, TOC-extracted, and used to derive semester goals with per-chapter pacing. Goals auto-adjust when deliverables slip — rescheduling forward rather than marking failure — and surface gentle nudges after repeated slips. The goal system connects to the Knowledge domain structure, so academic goals map to `math/`, `cs/`, `quant/` domains.
 
@@ -38,7 +36,8 @@ It is built from two open-source systems, **ported** (not merged) onto commandco
 - Study material management: PDF ingestion, TOC extraction, chapter pacing derived from materials, active/archive lifecycle per semester.
 - Goal ↔ domain mapping: academic goals linked to Knowledge domains (`math/`, `cs/`, `quant/`), creating a bridge between *what you're studying* and *what you've learned*.
 - Runs on the $1/mo plan with no VPS, no separate API bill, no always-on daemon required.
-- Degrades gracefully: if `cmd` never runs, captures still land and stay readable.
+- Automated period recaps (weekly / monthly / semester) — factual snapshots of what happened: deliverable completion, streak data, knowledge growth, material progress, biggest win, upcoming deliverables. Hybrid trigger: nightly silently appends scratch data; user invokes manually to produce the formatted recap.
+- All the above degrades gracefully: if `cmd` never runs, captures still land and stay readable.
 
 ### Non-goals (explicitly scoped OUT of v1, with rationale)
 
@@ -88,7 +87,8 @@ akasha/
 │   │   ├── akasha-goal-setter.md    # interactive goal creation at any level
 │   │   ├── akasha-goal-tracker.md   # progress calc, staleness, adjustment
 │   │   ├── akasha-material-parser.md # PDF → structured TOC
-│   │   └── akasha-adopt.md          # one-shot existing-vault migration
+│   │   ├── akasha-adopt.md          # one-shot existing-vault migration
+│   │   └── akasha-recap.md          # period recap + biggest-win flow
 │   ├── hooks/
 │   │   ├── auto-commit.sh        # ported from PKM
 │   │   └── raw-guard.sh          # replaces permission lists
@@ -117,7 +117,9 @@ akasha/
 │       │   └── SKILL.md
 │       ├── akasha-daily/
 │       │   └── SKILL.md
-│       └── akasha-capture/
+│       ├── akasha-capture/
+│       │   └── SKILL.md
+│       └── akasha-recap/
 │           └── SKILL.md
 ├── AGENTS.md                     # bootstrap + conventions (was SessionStart)
 ├── bin/
@@ -127,6 +129,7 @@ akasha/
 │       ├── process-inbox.md
 │       ├── update-hotcache.md
 │       ├── goal-adjust.md        # nightly goal adjustment prompt
+│       ├── append-recap-scratch.md  # nightly recap scratch accumulation
 │       └── semester-archive.md   # archive previous semester materials
 ├── Inbox/                        # capture drop zone
 │   └── _processed/               # raw sources after ingest (immutable archive)
@@ -164,10 +167,20 @@ akasha/
 │       └── 2025-fall/
 ├── Daily/                        # tonight-only plan + streak line
 ├── Reviews/                      # weekly / Sunday reviews
+├── Recaps/                       # period recaps (weekly/monthly/semester)
+│   ├── weekly/
+│   │   └── 2026-W40.md
+│   ├── monthly/
+│   │   └── 2026-09.md
+│   └── semester/
+│       └── 2026-fall.md
 ├── Templates/                    # concept, math, source, entity, question, moc, daily, weekly
 └── .akasha/
     ├── hot.md                    # hot cache (session continuity)
-    └── streak.md                 # positive floors/streak log
+    ├── streak.md                 # positive floors/streak log
+    ├── recap-weekly-scratch.md   # nightly raw data accumulation
+    ├── recap-monthly-scratch.md  # nightly raw data (month rollups)
+    └── recap-semester-scratch.md # nightly raw data (term rollups)
 ```
 
 **Inbox vs Knowledge boundary** (from autonote's `.raw/` → `wiki/` split): `Inbox/` is human-owned and the ingest agent never rewrites a raw capture — it reads, transcribes into a *new* Knowledge note, then moves the original into `Inbox/_processed/`. Math photos are kept (not deleted) so a LaTeX transcription can be re-checked against the source.
@@ -312,7 +325,7 @@ payload=$(cat)
 cwd=$(printf '%s' "$payload" | jq -r '.cwd')
 cd "$cwd" || exit 0
 [ -d .git ] || exit 0
-git add -- Knowledge/ Inbox/ Daily/ Reviews/ Goals/ StudyMaterials/ .akasha/ 2>/dev/null || true
+git add -- Knowledge/ Inbox/ Daily/ Reviews/ Recaps/ Goals/ StudyMaterials/ .akasha/ 2>/dev/null || true
 git diff --cached --quiet && exit 0
 git commit -q -m "akasha: auto-commit $(date '+%Y-%m-%d %H:%M')" || true
 ```
@@ -602,6 +615,16 @@ Archives previous semester materials and sets up a new term.
 - **Output:** Archives `StudyMaterials/active/` + `pdfs/` to `archive/<previous-term>/`, clears active directories, creates new semester goal file (`Goals/semester/<term>.md`), prompts for materials.
 - **Behavior:** Multi-step interactive process. First archives (non-destructive — files move, not delete). Then reads 4-year vision and last semester's goal to propose the new semester's focus. Asks about course load, commitments, materials. If PDFs are already in `inbox/`, offers to run `/akasha-material-ingest` for each.
 - **Edge cases:** No previous semester → skips archive step. Previous semester not completed → warns about unfinished goals, asks which to carry forward vs. drop.
+
+#### `/akasha-recap <weekly|monthly|semester>` — period snapshot
+
+Produces a factual, backward-looking recap at the requested cadence with interactive biggest-win selection.
+
+- **When:** Sunday (weekly), month end (monthly), or as part of semester transition (semester). Also on-demand.
+- **Input:** Level (`weekly`, `monthly`, or `semester`).
+- **Output:** Creates `Recaps/<level>/<period>.md` with deliverable stats, streak data, knowledge growth, material progress, study load, biggest win, and upcoming deliverables. Proposes 3 auto-generated "biggest win" candidates from the period's data — user picks one or writes their own. Resets the corresponding scratch file in `.akasha/` for the new period.
+- **Behavior:** Reads the accumulated scratch file + cross-references `Daily/`, `Goals/`, `Knowledge/`, `StudyMaterials/`, and `.akasha/streak.md` for a complete picture. Writes nothing until the user confirms the biggest win. Read-only except for the final recap file and scratch reset.
+- **Edge cases:** No scratch data → produces a minimal recap from cross-referenced source data alone. Recap already exists → warns and offers to append. No active goals → skips goal sections, produces knowledge-only recap. Weekend day not Sunday → produces the recap for the most recently completed week.
 
 ### 5.8 Goal cascade (ported from PKM, adapted for college lifecycle)
 
@@ -911,6 +934,133 @@ Never: overwrite an existing material file, skip the confirmation step, or
 estimate difficulty without showing the basis for the estimate.
 ```
 
+### 5.12 Period recaps (weekly / monthly / semester)
+
+Automated, factual backward-looking snapshots at three cadences. Distinct from the weekly review (§5.5, §5.7 `/akasha-review`) which is a reflective 5-question ritual — the recap answers "what actually happened" before the review asks "how did it feel." Hybrid trigger: nightly silently appends raw data to scratch files; the user explicitly invokes `/akasha-recap <level>` to produce a formatted recap with an interactive "biggest win" flow.
+
+#### What's in each level
+
+**Weekly recap** (`Recaps/weekly/YYYY-WXX.md`):
+- **Deliverable stats** — X/Y completed, rescheduled, slipped; any patterns
+- **Streak** — floors held (study/move/consume), any breaks this week
+- **Knowledge** — notes created this week, domains touched, top MOC growth (notes added to each MOC)
+- **Inbox** — items processed this week
+- **Materials** — chapters started and completed this week
+- **Study load** — energy tag distribution from dailies (high/medium/low counts), approximate study hours from schedule adherence
+- **Biggest win** — single highlight, user-picked from 3 agent-proposed candidates or user-written
+- **What's upcoming** — next week's ONE Thing + key deliverables from the goal cascade
+
+**Monthly recap** (`Recaps/monthly/YYYY-MM.md`): aggregates 4-5 weeklies plus:
+- Must/Should/Nice completion rates from the monthly goal
+- Staleness warnings surfaced during the month
+- Domain growth trend (note count delta per domain)
+- Semester-progress gauge (% of semester chapters covered across all materials)
+
+**Semester recap** (`Recaps/semester/<term>.md`): aggregates monthlies plus:
+- Full material coverage (chapters done / total per material)
+- Total Knowledge notes created, evergreen count, stale seed notes
+- Domain growth summary across the term (full note count per domain from `_domains.md`)
+- Goal cascade retrospect — how the 4-year vision translated to this semester's execution
+- Carried-forward items for the next term (from `_not-doing.md` or unflagged incomplete deliverables)
+
+#### Directory & scratch files
+
+```
+Recaps/
+├── weekly/
+│   └── 2026-W40.md
+├── monthly/
+│   └── 2026-09.md
+└── semester/
+    └── 2026-fall.md
+
+.akasha/
+├── recap-weekly-scratch.md       # nightly appends raw data
+├── recap-monthly-scratch.md      # nightly appends (month rollups)
+└── recap-semester-scratch.md     # nightly appends (term rollups)
+```
+
+#### Scratch file format (three files, same structure)
+
+```markdown
+# Weekly Recap Scratch (2026-W40)
+<!-- Nightly appends. Raw data, no formatting. Read by akasha-recap agent. -->
+
+## 2026-09-28
+- streak: study=yes, move=yes, consume=yes
+- deliverables done: "Finish chapter 3 Strang"
+- notes created: 2
+- inbox processed: 1
+- energy: high
+
+## 2026-09-29
+...
+```
+
+The agent reads this accumulated scratch file during `/akasha-recap`, cross-references it with `Daily/`, `Goals/`, `Knowledge/`, `StudyMaterials/active/`, `.akasha/streak.md`, and `_moc-registry.md` files to produce the formatted recap. The scratch file resets after a successful recap run (the agent writes an empty scratch file for the new period).
+
+#### Hybrid trigger
+
+**Nightly appends** (`/akasha-nightly`, as a 4th headless step after goal-adjust): append 2-3 lines to `.akasha/recap-weekly-scratch.md` — today's streak status, deliverable completions, notes created count. No formatting, no user-facing output. The monthly and semester scratch files are updated on period boundaries only (month-end / term-end), not nightly.
+
+**Manual invocation** — `/akasha-recap weekly|monthly|semester`:
+1. Agent reads the corresponding scratch file
+2. Cross-references vault data to produce the formatted recap
+3. Proposes 3 "biggest win" candidates auto-generated from the period's data
+4. User picks one (or writes their own) — agent writes the choice into the recap
+5. Saves to `Recaps/<level>/<period>.md`
+6. Resets the scratch file to empty for the new period
+
+#### Period boundary detection
+
+- **Weekly:** Sunday is the natural recap day. The agent detects "is today Sunday and does a recap not yet exist?" on nightly, and surfaces a hint: "Weekly recap ready."
+- **Monthly:** Last day of the month triggers the hint. Monthly scratch is written on the last nightly of the month.
+- **Semester:** Tied to `/akasha-semester-setup`. No auto-detection needed — the semester transition flow includes the recap as a step.
+
+#### Biggest win flow
+
+The agent scans the period's data and proposes 3 candidates based on what's factually notable. Examples of auto-generated candidates:
+
+- "5-day study streak completed this week"
+- "Finished 3 Strang chapters"
+- "10 new Knowledge notes created across 3 domains"
+- "First week all three floors held every day"
+- "Completed AWS AI Practitioner practice exam"
+
+Candidates are derived from: streak milestones, deliverable completion counts, chapter completions, note creation spikes, and floor consistency. User picks one or writes their own. The agent writes the final choice into the recap.
+
+#### `akasha-recap` agent
+
+```markdown
+---
+name: akasha-recap
+description: Produce a period recap (weekly, monthly, semester) by reading the corresponding scratch file and cross-referencing vault data. Proposes 3 biggest-win candidates for the user to pick from.
+tools: read_file, write_file, edit_file, glob, grep, shell_command, think
+---
+You produce a factual, backward-looking period recap.
+
+Process:
+1. Determine the target period from today's date and `level` parameter.
+2. Read the corresponding scratch file from .akasha/.
+3. Cross-reference with source data:
+   - Daily/<period-dates>.md (energy tags, handwritten top-3 items)
+   - Goals/weekly/ + Goals/monthly/ (deliverable stats, completion rates)
+   - Knowledge/_index.md + _moc-registry.md per domain (note count, MOC growth)
+   - StudyMaterials/active/*.md (chapter completion status)
+   - .akasha/streak.md (floors held, any breaks)
+   - Inbox/_processed/ (count of items processed in the period)
+4. Produce the formatted recap under Recaps/<level>/<period>.md using the
+   appropriate structure for the level (weekly/monthly/semester sections).
+5. Generate 3 biggest-win candidates from data patterns.
+6. Present the candidates and ask the user to pick one or write their own.
+7. On user confirmation, write the chosen win into the recap and save.
+8. Reset the scratch file to empty for the new period.
+
+Never: write the recap without user confirmation on the biggest win,
+overwrite an existing recap, or alter data in Daily/, Goals/, or Knowledge/.
+Read-only except for the final recap file and scratch reset.
+```
+
 ---
 
 ## 6. Key flows
@@ -926,18 +1076,21 @@ The nightly pipeline is wrapped in a skill so it's invokable as a slash command 
 
 **Invocation:** `/akasha-nightly` (or `/akasha-nightly` typed in any cmdc session in the vault).
 
-**Under the hood**, the skill runs three headless `cmd` calls sequentially:
+**Under the hood**, the skill runs four headless `cmd` calls sequentially:
 
 ```bash
 cd "$HOME/akasha"
-cmd -p "$(cat bin/prompts/process-inbox.md)"   --yolo --skip-onboarding --max-turns 60
-cmd -p "$(cat bin/prompts/goal-adjust.md)"     --yolo --skip-onboarding --max-turns 15
-cmd -p "$(cat bin/prompts/update-hotcache.md)" --yolo --skip-onboarding --max-turns 8
+cmd -p "$(cat bin/prompts/process-inbox.md)"       --yolo --skip-onboarding --max-turns 60
+cmd -p "$(cat bin/prompts/goal-adjust.md)"         --yolo --skip-onboarding --max-turns 15
+cmd -p "$(cat bin/prompts/append-recap-scratch.md)" --yolo --skip-onboarding --max-turns 5
+cmd -p "$(cat bin/prompts/update-hotcache.md)"     --yolo --skip-onboarding --max-turns 8
 ```
 
 `process-inbox.md` instructs the main session: *"List every file in `Inbox/` (excluding `_processed/`). For each, delegate to the `akasha-ingest` agent. After all are filed, update `Knowledge/_index.md`."* (Delegation works headlessly; slash commands don't — hence prompt-driven, not `/skill`-driven.)
 
 `goal-adjust.md` instructs: *"Read `Goals/weekly/` for the current week. Read today's `Daily/` note. For each pending deliverable, check if it was completed. Reschedule slipped items forward. Flag items slipped 3+ times. If >50% slipped, surface Start/Stop/Continue. Update the weekly goal file."*
+
+`append-recap-scratch.md` instructs: *"Read today's `Daily/` note and `.akasha/streak.md`. Append 2-3 lines to `.akasha/recap-weekly-scratch.md` — today's streak status, deliverable completions, notes created count. No output needed."* If it's the last day of the month or the last week of a semester, update the monthly/semester scratch files as well.
 
 **Error surfacing:** The skill captures exit codes and stderr from all three `cmd` runs. If any fails, it surfaces the error summary to the user — e.g. which agent errored, how many items processed before failure, and the relevant log tail. No silent failures.
 
@@ -998,6 +1151,18 @@ Via `/akasha-semester-setup <term>`:
 
 Summer terms follow the same flow — they're just another semester entry with lighter expected load.
 
+### 6.7 Recap flow
+
+Via `/akasha-recap <weekly|monthly|semester>`:
+
+1. Agent determines the target period from today's date and the level parameter.
+2. Reads the corresponding scratch file from `.akasha/` (`.akasha/recap-weekly-scratch.md` for weekly, etc.).
+3. Cross-references with `Daily/`, `Goals/`, `Knowledge/_index.md`, `StudyMaterials/active/`, `.akasha/streak.md`, and domain `_moc-registry.md` files for a complete picture.
+4. Proposes 3 biggest-win candidates auto-generated from the period's data.
+5. User picks one (or writes their own) — agent writes the final recap to `Recaps/<level>/<period>.md`.
+6. Resets the scratch file to empty for the new period.
+7. If invoked during `/akasha-semester-setup` for semester-level recap, the recap runs before archiving the previous term's materials.
+
 ---
 
 ## 7. Design invariants
@@ -1025,6 +1190,7 @@ Summer terms follow the same flow — they're just another semester entry with l
 | `accountability-engineer` | daily/streak/floors, `akasha-weekly`, `akasha-goal-align`               |
 | `goals-engineer`          | goal cascade, study materials, PDF parsing, `akasha-goal-setter`, `akasha-goal-tracker`, `akasha-material-parser` |
 | `hygiene-engineer`        | `akasha-lint`, lightweight query prompt                                 |
+| `recap-engineer`          | period recaps, scratch files, biggest-win flow, nightly integration     |
 | `verifier`                | read-only pre-merge audit (ported from autonote `verifier.md`)          |
 
 **Worktree mechanics.** One repo, one worktree per parallel stream off a per-sprint integration branch:
@@ -1103,9 +1269,18 @@ git worktree add ../akasha-harness   feat/harness
 **Merge order:** `goals` → `materials` → `goal-setter` → `goal-tracker` → `semester` → `daily-goals` → `sprint-5` → `main`.
 **Acceptance:** `/akasha-goal-set semester` runs an interactive brainstorming session that produces a semester goal file; dropping a PDF in `StudyMaterials/inbox/` and running `/akasha-material-ingest` creates a structured TOC in `active/`; `/akasha-daily` surfaces cascade context and suggestions from weekly deliverables; `/akasha-nightly` auto-reschedules slipped deliverables; `/akasha-semester-setup` archives previous materials and creates a new semester goal; goal ↔ domain mapping connects academic goals to Knowledge domains.
 
-**Overall merge order:** `sprint-1 → sprint-2 → sprint-2.5 → sprint-3 → sprint-4 → sprint-5 → main`.
+**Overall merge order:** `sprint-1 → sprint-2 → sprint-2.5 → sprint-3 → sprint-4 → sprint-5 → sprint-6 → main`.
 
 > Solo-dev note: the two worktrees per sprint are *optional* parallelism. If juggling two `cmd` sessions adds friction, run them sequentially on one branch — the dependency arrows already give a safe linear order. Don't let the build orchestration become its own maintenance project.
+
+### Sprint 6 — Period Recaps (snapshots)
+
+| #   | Worktree / branch | Owner           | Scope                                                                                               | Depends on              |
+| --- | ----------------- | --------------- | --------------------------------------------------------------------------------------------------- | ----------------------- |
+| 1   | `feat/recap`      | recap-engineer  | `Recaps/` directory structure, `.akasha/recap-*-scratch.md` stubs, `akasha-recap` agent, `/akasha-recap` skill, `bin/prompts/append-recap-scratch.md`, nightly pipeline integration (4th headless step), period boundary detection (weekly/monthly), biggest-win candidate generation and interactive flow | Sprint 3 + Sprint 5     |
+
+**Merge order:** `recap` → `sprint-6` → `main`.
+**Acceptance:** `/akasha-recap weekly` reads the scratch file and produces `Recaps/weekly/YYYY-WXX.md` with deliverable stats, streak data, knowledge growth, material progress, study load, biggest win, and upcoming deliverables; agent proposes 3 biggest-win candidates from the period's data; user picks one and the recap is saved; scratch file resets to empty; nightly pipeline appends 2-3 lines to the scratch file silently; monthly and semester recaps work with the same flow; period boundary detection surfaces a hint when a recap window opens.
 
 ---
 
@@ -1134,3 +1309,4 @@ git worktree add ../akasha-harness   feat/harness
 **Auto-adjustment (new):** Slipped deliverables reschedule forward. 3+ slips → flag for rescheduling. >50% slipped → Start/Stop/Continue. Never "failed." Structural changes require confirmation.
 **Daily integration (new):** Cascade context surfacing in `/akasha-daily` (ONE Thing + monthly priorities + suggestions). Goal adjustment in `/akasha-nightly` (reschedule slipped items, update hot cache).
 **Goal areas (new):** 6 areas — academic, career, health, relationships, soul, financial. "Growth" dropped (vague). "Creativity" replaced by "soul" (broader). "Academic" added (primary study area).
+**Period recaps (new):** 3-level recap system — weekly / monthly / semester. Hybrid trigger: nightly silently appends raw data to scratch files; user invokes manually to produce formatted snapshot. Biggest win is user-picked from 3 agent-proposed candidates. Sprint 6, depends on Sprint 3 (dailies/streak) and Sprint 5 (goals/materials).
