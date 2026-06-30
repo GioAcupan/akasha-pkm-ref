@@ -1,61 +1,46 @@
-# Sprint 1 - Track 2: Harness Implementation Plan
+# Sprint 2 Track 3 — Quick Capture Skill Plan
 
-**Plan:** `docs/superpowers/plans/sprint-1-track-harness.md`
-**Source:** TASK.md (feat/harness)
-**Depends on:** feat/substrate (paths must exist)
+**Plan:** `docs/superpowers/plans/sprint-2-track-capture.md`  
+**Source:** TASK.md (feat/capture)
+**Depends on:** Sprint 1 (directory structure + `.commandcode/skills/` exists)
 
-## Task 1: Create .commandcode/ configuration
+## Task 1: Create /akasha-capture skill file
 
-- [ ] Create `.commandcode/` directory
-- [ ] Create `.commandcode/settings.json` with PreToolUse hook (raw-guard) and PostToolUse hook (auto-commit)
+- [ ] Create `.commandcode/skills/akasha-capture/SKILL.md`
+- [ ] Format: standard cmdc skill with description and when-to-use
+- [ ] Document input: text content from user
+- [ ] Document behavior: creates timestamp-based file in `Inbox/`
+- [ ] Document file format: minimal YAML frontmatter (date, status: seed) + body text
+- [ ] Document edge cases: empty input, multi-line text, missing Inbox directory, filename collision
 
-## Task 2: Create hook scripts
+## Task 2: Implement capture logic
 
-- [ ] Create `.commandcode/hooks/` directory
-- [ ] Create `.commandcode/hooks/auto-commit.sh` — reads stdin JSON for cwd, git add targeted dirs, commit if changes
-- [ ] Create `.commandcode/hooks/raw-guard.sh` — reads stdin JSON, blocks writes to Inbox/_processed/ with deny response
-- [ ] Make both scripts executable (`chmod +x`)
+The skill body must instruct how to:
+- [ ] Accept text input from the user
+- [ ] Generate timestamp filename: `YYYY-MM-DDTHH-mm-ss.md` (append millisecond suffix if collision)
+- [ ] Create file with frontmatter:
+  ```markdown
+  ---
+  date: YYYY-MM-DDTHH:mm:ss
+  status: seed
+  ---
+  <captured text>
+  ```
+- [ ] Write to `Inbox/<filename>.md`
+- [ ] Confirm to user: "Captured to Inbox/<filename>.md"
+- [ ] Handle multi-line text: preserve all line breaks, do not reformat
+- [ ] Handle empty input: prompt user for content, do not create empty file
 
-## Task 3: Replace AGENTS.md
+## Task 3: Defensive handling
 
-- [ ] Read existing `AGENTS.md`
-- [ ] Write new AGENTS.md with Akasha bootstrap content:
-  - Vault conventions + Inbox/Knowledge boundary
-  - Silent hot.md read instruction
-  - Two capture rails
-  - Six note types driven by frontmatter
-  - Zettelkasten + LYT MOCs methodology
-  - Design invariant I-1
-  - Status lifecycle (seed → growing → evergreen)
-  - Template references
+- [ ] If `Inbox/` directory does not exist, create it first
+- [ ] If timestamp collision (two captures in same second), append `-2`, `-3`, etc.
 
-## Task 4: Create bin/ stubs
+## Task 4: Integration note
 
-- [ ] Create `bin/` directory
-- [ ] Create `bin/akasha-nightly.sh` — executable, echo stub message
-- [ ] Create `bin/pdf-extract.sh` — executable, echo stub message
-- [ ] Create `bin/prompts/` directory
-- [ ] Create `bin/prompts/process-inbox.md` — "# Process Inbox\n\nNot yet implemented."
-- [ ] Create `bin/prompts/goal-adjust.md` — "# Goal Adjust\n\nNot yet implemented."
-- [ ] Create `bin/prompts/append-recap-scratch.md` — "# Append Recap Scratch\n\nNot yet implemented."
-- [ ] Create `bin/prompts/update-hotcache.md` — "# Update Hot Cache\n\nNot yet implemented."
-- [ ] Create `bin/prompts/semester-archive.md` — "# Semester Archive\n\nNot yet implemented."
+- [ ] Document that captured files are processed by `akasha-ingest` during next `/akasha-nightly` — no special handling needed
+- [ ] This is a standalone skill — it writes a file and exits, no agent delegation needed
 
-## Task 5: Create skills directory and akasha-nightly skill
+## Task 5: Commit
 
-- [ ] Create `.commandcode/skills/` directory
-- [ ] Create `.commandcode/skills/akasha-nightly/` directory
-- [ ] Create `.commandcode/skills/akasha-nightly/SKILL.md` — valid cmdc skill file documenting the 4-step pipeline with all steps marked as stubs
-
-## Task 6: Create agents stub
-
-- [ ] Create `.commandcode/agents/` directory with `.gitkeep`
-
-## Task 7: Verification
-
-- [ ] Verify settings.json is valid JSON
-- [ ] Verify auto-commit.sh and raw-guard.sh are executable
-- [ ] Verify AGENTS.md contains hot.md silent-read instruction
-- [ ] Verify bin/ scripts are executable and return 0
-- [ ] Verify /akasha-nightly skill file is valid markdown with correct skill metadata
-- [ ] Verify no .commandcode/agents/ runtime agents exist (only .gitkeep)
+- [ ] Commit to feat/capture with message: "akasha: Sprint 2 Track 3 — /akasha-capture quick capture skill"

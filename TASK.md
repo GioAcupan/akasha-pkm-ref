@@ -1,64 +1,64 @@
-# Sprint 1 - Track 2: Harness (Configuration & Entry Points)
+# Sprint 2 Track 3 — Quick Capture Skill
 
-**Owner:** harness-engineer
-**Branch:** feat/harness
-**Depends on:** feat/substrate (needs folder paths to exist for hook scripts)
+**Owner:** pipeline-engineer
+**Branch:** feat/capture
+**Depends on:** Sprint 1 (directory structure + skills directory exist)
 
 ## Scope
 
-Build the Command Code harness layer: config, hooks, AGENTS.md, bin/ stubs, and the /akasha-nightly skill. Everything that makes this vault a cmdc project. No runtime agents - those come in Sprint 2+.
+Create the `/akasha-capture` skill — a cmdc-native quick capture rail. Lets you type fleeting thoughts directly from the terminal into the Inbox without opening Obsidian. Complements the photo sync rail (math/photos) and direct Obsidian typing (code/concepts).
 
 ## Tasks
 
-### 1. .commandcode/settings.json (§5.3)
+### 1. Create `/akasha-capture` skill (§5.7)
 
-Wire PreToolUse hook for raw-guard on write|edit, and PostToolUse hook for auto-commit on write|edit. Both use command type, point to ./commandcode/hooks/ scripts.
+Create `.commandcode/skills/akasha-capture/SKILL.md` with:
 
-### 2. .commandcode/hooks/auto-commit.sh (§5.3)
+- Standard cmdc skill format (name, description, when to use)
+- **Input:** Text content provided by the user
+- **Behavior:** Creates a new file in `Inbox/` with timestamp-based filename: `YYYY-MM-DDTHH-mm-ss.md`
+- **File format:** Minimal YAML frontmatter (date, status: seed) + the captured text as body
+- **Output:** Confirms the file was created, shows the filename
+- **Edge cases:**
+  - Empty input → prompts for content
+  - Multi-line text → handled gracefully, preserves formatting
+  - Inbox doesn't exist → creates it first (defensive)
+  - File collision (same timestamp) → append millisecond suffix
 
-Read stdin JSON for cwd, cd to it, exit 0 if not git repo. Git add Knowledge/ Inbox/ Daily/ Reviews/ Recaps/ Goals/ StudyMaterials/ .akasha/. If staged changes exist, commit with message "akasha: auto-commit $(date +"%Y-%m-%d %H:%M")". Set executable.
+### 2. File format
 
-### 3. .commandcode/hooks/raw-guard.sh (§5.3)
+Each captured file should look like:
 
-Read stdin JSON, extract tool_input.file_path. If path contains /Inbox/_processed/, output JSON deny response with reason. Otherwise exit 0. Set executable.
+```markdown
+---
+date: YYYY-MM-DDTHH:mm:ss
+status: seed
+---
 
-### 4. AGENTS.md (§5.4)
+<captured text content>
+```
 
-Replace existing AGENTS.md with Akasha bootstrap content:
-- Vault conventions and Inbox/Knowledge boundary
-- "At start of any session, silently read .akasha/hot.md. Do not announce it."
-- Two capture rails (math/photo, code/concept)
-- Six knowledge note types driven by frontmatter type: field
-- Zettelkasten + LYT MOCs methodology
-- Design invariant I-1: agent layer is enrichment, never plumbing
-- Status lifecycle: seed -> growing -> evergreen
+Minimal frontmatter — just enough for the ingest agent to process it. No title, domain, or tags needed (the ingest agent adds those during processing).
 
-### 5. bin/ stubs (§6.2, §5.10)
+### 3. Multi-line support
 
-- bin/akasha-nightly.sh - executable placeholder echoing pipeline not implemented
-- bin/pdf-extract.sh - executable placeholder echoing not implemented
-- bin/prompts/process-inbox.md - "# Process Inbox\n\nNot yet implemented."
-- bin/prompts/goal-adjust.md - "# Goal Adjust\n\nNot yet implemented."
-- bin/prompts/append-recap-scratch.md - "# Append Recap Scratch\n\nNot yet implemented."
-- bin/prompts/update-hotcache.md - "# Update Hot Cache\n\nNot yet implemented."
-- bin/prompts/semester-archive.md - "# Semester Archive\n\nNot yet implemented."
+Handle multi-line capture gracefully:
 
-### 6. .commandcode/agents/ stub
+- User provides text with line breaks (e.g. pasted code snippet, multi-paragraph thought)
+- Preserve the line breaks in the output file
+- Do NOT wrap or reformat
 
-Create directory with .gitkeep. Agent files come in Sprint 2+.
+### 4. Integration with nightly pipeline
 
-### 7. .commandcode/skills/akasha-nightly/SKILL.md (§5.7, §6.2)
-
-A valid cmdc skill file for /akasha-nightly. Documents the 4-step pipeline, with clear stubs marking items not yet implemented. Process steps: (1) process-inbox, (2) goal-adjust, (3) append-recap-scratch, (4) update-hotcache. Current state: all are stubs.
-
-### 8. .commandcode/skills/ directory
-
-Create directory (populated by akasha-nightly/ subdir). No other skills yet - those come in later sprints.
+The captured file goes straight to `Inbox/` — no special handling needed. It gets processed by the `akasha-ingest` agent during the next `/akasha-nightly` run, same as any other Inbox item.
 
 ## Acceptance Criteria (§8)
 
-- cmd session reads hot.md via AGENTS.md (AGENTS.md has silent-read instruction)
-- Write to Knowledge/ triggers auto-commit (POST-write hook fires)
-- Write to Inbox/_processed/ is denied (PRE-write guard blocks it)
-- /akasha-nightly is invokable and surfaces stub state
-- No .commandcode/agents/ runtime files (Sprint 2+ boundary)
+- `/akasha-capture "test note"` creates a file in `Inbox/`
+- File has timestamp-based filename: `YYYY-MM-DDTHH-mm-ss.md`
+- File has valid YAML frontmatter (date, status: seed)
+- File body contains the captured text unmodified
+- Multi-line text preserved with original formatting and line breaks
+- Empty input handled gracefully (prompts for content, doesn't create empty file)
+- Captured file is processed on next `/akasha-nightly` run (integration test)
+- Skill file is valid cmdc slash command format
