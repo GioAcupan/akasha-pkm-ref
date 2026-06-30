@@ -1,16 +1,24 @@
-# Akasha Nightly Pipeline
+# /akasha-nightly — Run the nightly pipeline
 
-Run the full nightly ingest pipeline — inbox processing, goal adjustment, recap scratch, and hot cache update.
+Runs the nightly processing pipeline: inbox ingest → goal adjustment → streak update → hot cache update.
 
-**When:** End of day, anchored to the nightly planning ritual.
+## Pipeline Steps
 
-**Process:**
+1. **Process Inbox** — delegate to `akasha-ingest` for each inbox item (Sprint 2+)
+2. **Goal Adjustment** — reschedule slipped deliverables (Sprint 5+)
+3. **Streak Update** — update `.akasha/streak.md` with today's floor status (Sprint 3)
+4. **Hot Cache Update** — refresh `.akasha/hot.md` for session continuity (Sprint 2+)
 
-1. **Process Inbox** — Read all files in `Inbox/` (excluding `_processed/`), delegate to `akasha-ingest` agent for transcription and filing into `Knowledge/`. Not yet implemented — Sprint 2.
-2. **Goal Adjustment** — Read weekly deliverables and today's daily note. Reschedule slipped items forward. Flag items slipped 3+ times. Not yet implemented — Sprint 5.
-3. **Append Recap Scratch** — Append 2-3 lines to `.akasha/recap-weekly-scratch.md` with today's streak status and deliverable completions. Not yet implemented — Sprint 6.
-4. **Update Hot Cache** — Regenerate `.akasha/hot.md` from recent activity for session continuity. Not yet implemented — Sprint 2.
+## Usage
 
-**Current state:** All pipeline steps are stubs. The skill surfaces this clearly.
+Type `/akasha-nightly` in any cmdc session within the vault.
 
-**Under the hood:** Runs four sequential headless `cmd` calls via `bin/akasha-nightly.sh`.
+## Output
+
+- Summary of each pipeline step
+- Streak status: current count, longest streak
+- Errors surfaced with log tails if any step fails
+
+## Current State
+
+Steps 1, 2, and 4 are stubbed — they run only if their prompt files exist. Step 3 (streak update) is the first fully wired step.
