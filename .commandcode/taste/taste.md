@@ -13,6 +13,7 @@
 - Use domain-level folders only (e.g., Knowledge/math/, Knowledge/cs/) with topic/subtopic hierarchy expressed through agent-maintained MOC/index notes, never physical subdirectories below the domain level. Confidence: 0.75
 - Use a recursive MOC hierarchy with explicit level tracking (not fixed depth) — any MOC can nest another MOC, and the agent follows a clear protocol for creating/maintaining additional layers. Maintain a MOC registry file per domain or per Knowledge root for tracking the hierarchy. Confidence: 0.70
 - Notes must remain freely linkable across MOCs without restriction — MOCs are navigational aids that provide hierarchy, not boundaries that limit cross-MOC wikilinks. The system is a wiki (not a tree), and linking patterns must never be constrained by MOC placement. Confidence: 0.65
+- Use type: source for book/reference hub notes that link to derived atomic notes — a source note acts as a personal reference hub (with author, status, rating metadata) but is invisible to the MOC machinery (no registry entry, no lint checking, no split proposals). Books are private reference attachments, not navigational MOCs. The book is where you found the idea, not what the idea is. Confidence: 0.70
 
 # workflow
 - Wrap any automated/scripted process in a skill (via commandcode agent or prompt) rather than instructing the user to run shell commands manually. Confidence: 0.85
