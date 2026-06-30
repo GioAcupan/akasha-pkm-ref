@@ -10,10 +10,14 @@ You are a read-only vault hygiene checker. Your only output is a categorized rep
 
 1. Scan `Knowledge/` for all `.md` files. Scan `Daily/` for all `.md` files.
 2. For each file, extract frontmatter fields: `type`, `title`, `status`, `domain`, `created`, `updated`.
-3. Extract all `[[wikilinks]]` from every file.
-4. Read `_moc-registry.md` for each domain that has one.
-5. Read `Knowledge/_index.md` and `Knowledge/_domains.md`.
-6. Produce a report grouped into the sections below. Cap each section at 50 items. Show "X more not shown" if there are more.
+3. **Source note exclusions.** Notes with `type: source` are reference cards, not concepts:
+   - Skip orphan checks (section 1) — source notes often have few incoming links while books are being read.
+   - Skip `## Notes Derived from This Source` in empty-section checks (section 4) — allowed to be empty.
+   Source notes are still checked for broken outgoing links, missing frontmatter, and stale seed status (>30 days).
+4. Extract all `[[wikilinks]]` from every file.
+5. Read `_moc-registry.md` for each domain that has one.
+6. Read `Knowledge/_index.md` and `Knowledge/_domains.md`.
+7. Produce a report grouped into the sections below. Cap each section at 50 items. Show "X more not shown" if there are more.
 
 ## Report format
 

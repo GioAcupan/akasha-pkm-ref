@@ -56,7 +56,34 @@ When the source is a math image, analyze the transcribed content for keywords to
 
 If nothing fits, file under the nearest domain anyway and append a one-line candidate under the `## Proposed` section of `_domains.md`. Do NOT create a new domain folder yourself.
 
-## 4. Create or update atomic notes
+## 4. Source detection and link-back
+
+If the Inbox item is a chapter excerpt, passage collection, or concept dump from a known book, link the resulting atomic notes back to their parent source note.
+
+### Source detection
+
+Check if the capture references a known book:
+- Read `Knowledge/_index.md` for existing `type: source` notes. Match against `author` and `title` frontmatter fields.
+- Scan the Inbox item's body for mentions of known authors/titles.
+- If the filename or body contains explicit book references, try to match them.
+
+### Link-back
+
+After creating an atomic note (step 5), if a source note was identified:
+1. Read the source note at `Knowledge/<domain>/<source-note>.md`.
+2. Find the `## Notes Derived from This Source` section.
+3. Append a `[[wikilink]]` bullet point listing the new atomic note.
+4. Do NOT modify any other section of the source note.
+
+### No match
+
+If the agent cannot identify the source:
+- File the atomic note normally.
+- Suggest creating a source note for the book in the report.
+
+Non-source captures (random thoughts, standalone concepts) skip this step entirely.
+
+## 5. Create or update atomic notes
 
 For each significant concept/entity: create OR update the atomic note under `Knowledge/<domain>/` using the matching template.
 
@@ -78,7 +105,7 @@ For non-image sources, use the appropriate template (`concept`, `source`, `entit
 - Populate all frontmatter fields: `type`, `title`, `status`, `domain`, `created` (today's date), `updated` (today's date), `tags` (extracted from content), `related` (found via link matching), `sources` (original Inbox file path)
 - Populate body sections based on extracted content
 
-## 5. Navigate the MOC hierarchy
+## 6. Navigate the MOC hierarchy
 
 a. Read `Knowledge/<domain>/_moc-registry.md`.
 b. Walk the tree from the domain-level MOC to find the deepest matching MOC for the note's content.
@@ -87,19 +114,19 @@ d. If the note is also relevant to MOCs in OTHER domains, cross-list it there (a
 e. Update the Notes count in `_moc-registry.md` for each MOC touched.
 f. If any MOC's count reaches 15, include a split proposal in the report (suggest 2–3 subtopic MOC names + which notes would move). Do NOT auto-create the new MOCs.
 
-## 6. Cross-link
+## 7. Cross-link
 
 Add `[[wikilinks]]` to existing related notes in the body of the new note and update `related` frontmatter.
 
-## 7. Update index
+## 8. Update index
 
 Update `Knowledge/_index.md` to reflect the new note (increment domain notes count, update status counts).
 
-## 8. Check for contradictions
+## 9. Check for contradictions
 
 If a claim contradicts an existing note, add a `> [!contradiction]` callout in the new note describing the conflict.
 
-## 9. Archive the source
+## 10. Archive the source
 
 Move the raw source file to `Inbox/_processed/` using a timestamp prefix:
 
@@ -113,7 +140,7 @@ For example: `2024-03-15T14-30-22_calculus-problem.jpg`
 
 **For images**: After archiving, ensure the `image_source` frontmatter field in the created note points to the archived path: `Inbox/_processed/YYYY-MM-DDTHH-mm-ss_original-filename.ext`.
 
-### 9a. Unreadable image handling
+### 10a. Unreadable image handling
 
 If an image cannot be transcribed (too blurry, not legible, not mathematical content):
 
@@ -131,7 +158,7 @@ If an image cannot be transcribed (too blurry, not legible, not mathematical con
 
 **Never fail silently** — always create a note and always preserve the source image.
 
-## 10. Report
+## 11. Report
 
 Output a concise report:
 

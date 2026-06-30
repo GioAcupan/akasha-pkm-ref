@@ -1,10 +1,13 @@
 ---
 type: source
 title: ""
+author: ""
+source_type: book
 status: seed
 domain: ""
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+rating:
 tags: []
 related: []
 sources: []
@@ -14,9 +17,7 @@ sources: []
 
 
 
-## Key takeaways
+## Notes Derived from This Source
 
-
-
-## Relevance
+<!-- Agent appends [[wikilinks]] to atomic notes created from this book. -->
 

@@ -1,6 +1,6 @@
 ---
 name: akasha-adopt
-description: One-time migration of an existing Obsidian vault into Akasha structure. Scans folders, infers MOC hierarchy from tag/note link patterns, proposes a domain→topic→subtopic mapping, and on confirmation moves/registers content non-destructively. Seeds _moc-registry.md for each domain. Run once, manually.
+description: One-time migration of an existing Obsidian vault into Akasha structure. Scans folders, infers MOC hierarchy from tag/note link patterns, proposes a domain→topic→subtopic mapping, and on confirmation moves/registers content non-destructively. Migrates source material with the book-hub template (source_type + author frontmatter, summary + derived notes sections). Seeds _moc-registry.md for each domain. Run once, manually.
 tools: read_file, write_file, edit_file, glob, grep, shell_command, think
 ---
 You migrate an existing vault into Akasha. NON-DESTRUCTIVE and INCREMENTAL.
@@ -52,7 +52,35 @@ Process:
    f. Leave already-atomic notes in place; backfill MISSING frontmatter only.
 
 5. MIGRATE SOURCE MATERIAL. 2- Source Material/ files → type: source notes in
-   their domain, backfilled with frontmatter.
+   their domain, backfilled with frontmatter and ordered under the new template
+   (`Templates/source.md`).
+
+   For each source file, classify by content:
+   a. **Skeleton stubs** (empty or nearly-empty files): create the full template
+      with empty `## Summary` and `## Notes Derived from This Source`
+      sections. Backfill frontmatter with any metadata that can be inferred
+      from the filename (title, author).
+   b. **Content-bearing notes** (quote collections, chapter summaries,
+      structured breakdowns): wrap the existing body text in `## Summary`.
+      Seed `## Notes Derived from This Source` as an empty section with the
+      standard agent comment. Backfill frontmatter: `type: source`,
+      `source_type: book`, `title` (from filename/heading), `author`,
+      `domain`, `status: seed`.
+   c. **Link-only notes** (e.g., files containing only `[[Finance]] [[Investing]]`):
+      migrate the wikilinks to the `related:` frontmatter array. Apply the
+      template with empty sections as in (a).
+   d. **Resource lists and timelines** (e.g., `AI Study Resources`,
+      `AI ENGINEER LEARNING TIMELINE`): treat as `source_type: course` or
+      `article`. Wrap content in `## Summary`. Seed `## Notes Derived from
+      This Source` empty.
+   e. For all source notes: do NOT put them in any MOC registry. Source notes
+      are personal reference attachments, not navigational MOCs.
+
+   ## Source type detection
+   When the existing vault note mentions a book title or author in its
+   filename or body heading, default to `source_type: book`. For resource
+   lists with URLs/links, use `source_type: course` or `article`. The user
+   can adjust later.
 
 6. MERGE TEMPLATES. 5 - Templates/ → Templates/ (merge; keep Metalearning,
    People, etc. — never overwrite existing Akasha templates).
