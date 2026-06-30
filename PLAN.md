@@ -1,58 +1,36 @@
-# Sprint 2 Track 2 — Vision (Photo-to-LaTeX) Plan
+# Sprint 2.5 — Adopt Existing Vault Plan
 
-**Plan:** `docs/superpowers/plans/sprint-2-track-vision.md`
-**Source:** TASK.md (feat/vision)
-**Depends on:** feat/ingest (akasha-ingest agent contract for image handling in step 1)
+**Plan:** `docs/superpowers/plans/sprint-2.5-track-adopt.md`
+**Source:** TASK.md (feat/adopt)
+**Depends on:** Sprint 2 complete
 
-## Task 1: Update akasha-ingest for image detection
+## Task 1: Create akasha-adopt agent
 
-- [ ] Read current `.commandcode/agents/akasha-ingest.md` from ingest merge
-- [ ] Add image file extension detection in step 1: `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.webp`
-- [ ] Route image files to photo-to-LaTeX transcription sub-flow
-- [ ] Keep non-image files on standard text ingest path
+- [ ] Create `.commandcode/agents/akasha-adopt.md` with YAML frontmatter (name, description, tools list)
+- [ ] Implement Step 1 (SCAN): map `4 - Indexes/` files to Akasha domains, seed `_domains.md`, skip Organization.md
+- [ ] Implement Step 2 (INFER): for each tag in `3 - Tags/`, read referenced notes, detect parent-child relationships, determine domain and moc_level, produce proposal table, STOP for confirmation
+- [ ] Implement Step 3 (CREATE MOCs): on approval, convert tags to MOC notes with hierarchy, create `_moc-registry.md` per domain, link cross-references
+- [ ] Implement Step 4 (MIGRATE NOTES): domain detection, frontmatter backfill, placement in domain folder, MOC listing, cross-listing
+- [ ] Implement Step 5 (MIGRATE SOURCES): `2- Source Material/` → `type: source` with frontmatter
+- [ ] Implement Step 6 (MERGE TEMPLATES): `5 - Templates/` → `Templates/`, never overwrite
+- [ ] Implement Step 7 (REPORT): domains/MOCs/notes/ambiguous tags/manual review items
 
-## Task 2: Photo-to-LaTeX transcription rules
+## Task 2: Create /akasha-adopt skill
 
-- [ ] Extend step 1 with transcription rules when image detected:
-  - Use `read_file` to read image (commandcode supports image reading natively)
-  - Transcribe handwritten math to clean LaTeX within Markdown
-  - Preserve diagrams as described figures: `> [!figure] Description`
-  - Maintain structure: problem statement → solution steps → final result
-  - Flag uncertain transcriptions with `[?]` notation
-  - The model's vision capability handles the actual transcription — the agent's job is to route and structure the output
+- [ ] Create `.commandcode/skills/akasha-adopt/SKILL.md`
+- [ ] Document when to use, input, output
+- [ ] Document multi-step interactive process with confirmation gate
+- [ ] Document edge cases: already adopted, partial migration
+- [ ] Document non-destructive guarantee
 
-## Task 3: Math template wiring
+## Task 3: Guardrails
 
-- [ ] When creating a Knowledge note from image: select `Templates/math.md`
-- [ ] Populate `image_source` frontmatter field with path to `Inbox/_processed/<archived-filename>`
-- [ ] Set `type: math` in frontmatter
-- [ ] Populate `## LaTeX` section with transcribed content
-- [ ] Fill `## Why it matters` and `## Connections` based on content analysis
+- [ ] Verify agent never rewrites atomic note bodies (only backfills missing frontmatter)
+- [ ] Verify agent never overwrites existing Akasha templates
+- [ ] Verify agent stops at proposal table before any file moves
+- [ ] Verify agent flags ambiguous hierarchy placements
+- [ ] Verify incremental commits for reversibility
 
-## Task 4: Domain detection for math content
+## Task 4: Commit
 
-- [ ] Analyze math content keywords to determine domain:
-  - Linear algebra, matrices, vectors, eigenvalues → math
-  - Calculus, derivatives, integrals, limits → math
-  - Probability, distributions, statistics → math or quant
-  - ML notation, neural networks, gradients → cs
-  - Finance, economics, optimization, utility → quant
-- [ ] Default to math domain if uncertain
-
-## Task 5: Image archival in _processed/
-
-- [ ] Move original image to `Inbox/_processed/YYYY-MM-DDTHH-mm-ss_original-name.ext`
-- [ ] Set `image_source` frontmatter in the math note to the archived path
-- [ ] Never modify the raw image
-
-## Task 6: Unreadable image handling
-
-- [ ] If image can't be transcribed (too blurry, unreadable):
-  - Move to `_processed/` anyway
-  - Create minimal math note with `> [!warning] Transcription pending — image was unreadable.` and `status: seed`
-  - Include `image_source` link for manual review
-- [ ] Never fail silently — always create a note and always preserve the source
-
-## Task 7: Commit
-
-- [ ] Commit to feat/vision with message: "akasha: Sprint 2 Track 2 — photo-to-LaTeX vision transcription"
+- [ ] Commit to feat/adopt with message: "akasha: Sprint 2.5 — one-shot vault migration (akasha-adopt agent + /akasha-adopt skill)"
