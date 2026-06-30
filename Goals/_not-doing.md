@@ -1,10 +1,9 @@
-# Not Doing
+﻿# Not Doing
 
-Explicitly dropped goals to protect focus.
+Explicitly dropped goals and their reasons. Protects focus — if it's here, it's off the table.
 
-## Dropped
-| Goal | Reason | Date |
-|------|--------|------|
+| Goal | Original Level | Reason Dropped | Date |
+|------|---------------|----------------|------|
+| — | — | — | — |
 
-## Rationale
-<!-- Free-form notes on why goals were dropped -->
+Nothing dropped yet. This file exists to make dropping intentional.
