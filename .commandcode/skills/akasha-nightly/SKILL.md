@@ -5,7 +5,12 @@ Runs the nightly processing pipeline: inbox ingest → goal adjustment → strea
 ## Pipeline Steps
 
 1. **Process Inbox** — delegate to `akasha-ingest` for each inbox item (Sprint 2+)
-2. **Goal Adjustment** — reschedule slipped deliverables (Sprint 5+)
+2. **Goal adjustment** — runs `cmd` with `bin/prompts/goal-adjust.md`:
+   - Reads weekly deliverables and today's daily
+   - Marks done, reschedules slipped, flags 3+ slips
+   - Detects staleness, checks Start/Stop/Continue threshold
+   - Writes adjustment summary to `.akasha/hot.md`
+   - If no active goals: skips silently
 3. **Streak Update** — update `.akasha/streak.md` with today's floor status (Sprint 3)
 4. **Hot Cache Update** — refresh `.akasha/hot.md` for session continuity (Sprint 2+)
 
