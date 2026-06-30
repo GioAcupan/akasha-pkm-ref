@@ -1,64 +1,77 @@
-# Sprint 1 - Track 2: Harness (Configuration & Entry Points)
+# Sprint 2 Track 2 — Vision (Photo-to-LaTeX Transcription)
 
-**Owner:** harness-engineer
-**Branch:** feat/harness
-**Depends on:** feat/substrate (needs folder paths to exist for hook scripts)
+**Owner:** pipeline-engineer  
+**Branch:** feat/vision
+**Depends on:** feat/ingest (needs akasha-ingest agent contract for image handling)
 
 ## Scope
 
-Build the Command Code harness layer: config, hooks, AGENTS.md, bin/ stubs, and the /akasha-nightly skill. Everything that makes this vault a cmdc project. No runtime agents - those come in Sprint 2+.
+Add photo-to-LaTeX transcription to the ingest pipeline. When `akasha-ingest` encounters an image file in the Inbox, it transcribes the handwritten math into clean LaTeX and creates a `type: math` note. The raw photo is preserved in `_processed/` for verification.
 
 ## Tasks
 
-### 1. .commandcode/settings.json (§5.3)
+### 1. Image detection in akasha-ingest
 
-Wire PreToolUse hook for raw-guard on write|edit, and PostToolUse hook for auto-commit on write|edit. Both use command type, point to ./commandcode/hooks/ scripts.
+Update the `akasha-ingest` agent to detect image files (`.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.webp`) in step 1 of the ingest process. When an image is detected:
 
-### 2. .commandcode/hooks/auto-commit.sh (§5.3)
+- Route to the photo-to-LaTeX transcription flow
+- Non-image files continue through the standard text ingest flow
 
-Read stdin JSON for cwd, cd to it, exit 0 if not git repo. Git add Knowledge/ Inbox/ Daily/ Reviews/ Recaps/ Goals/ StudyMaterials/ .akasha/. If staged changes exist, commit with message "akasha: auto-commit $(date +"%Y-%m-%d %H:%M")". Set executable.
+### 2. Photo-to-LaTeX transcription rules (§5.2 step 1)
 
-### 3. .commandcode/hooks/raw-guard.sh (§5.3)
+Extend the agent's step 1 with transcription rules:
 
-Read stdin JSON, extract tool_input.file_path. If path contains /Inbox/_processed/, output JSON deny response with reason. Otherwise exit 0. Set executable.
+- Read the image using `read_file` (commandcode's `read_file` supports image files directly — the model sees the image content)
+- Transcribe handwritten math into clean LaTeX within Markdown
+- Preserve diagrams as described figures (e.g. "> [!figure] Description of the diagram")
+- Maintain the structure: problem statement → solution steps → final result
+- Flag uncertain transcriptions with `[?]` notation for review
 
-### 4. AGENTS.md (§5.4)
+### 3. Math template wiring (§5.1)
 
-Replace existing AGENTS.md with Akasha bootstrap content:
-- Vault conventions and Inbox/Knowledge boundary
-- "At start of any session, silently read .akasha/hot.md. Do not announce it."
-- Two capture rails (math/photo, code/concept)
-- Six knowledge note types driven by frontmatter type: field
-- Zettelkasten + LYT MOCs methodology
-- Design invariant I-1: agent layer is enrichment, never plumbing
-- Status lifecycle: seed -> growing -> evergreen
+When creating a Knowledge note from an image:
 
-### 5. bin/ stubs (§6.2, §5.10)
+- Use `Templates/math.md` as the template
+- Populate `image_source` frontmatter field with the path to the original image in `Inbox/_processed/` (for traceability)
+- Set `type: math` 
+- Populate the `## LaTeX` body section with the transcribed content
+- Fill `## Why it matters` and `## Connections` sections based on context
 
-- bin/akasha-nightly.sh - executable placeholder echoing pipeline not implemented
-- bin/pdf-extract.sh - executable placeholder echoing not implemented
-- bin/prompts/process-inbox.md - "# Process Inbox\n\nNot yet implemented."
-- bin/prompts/goal-adjust.md - "# Goal Adjust\n\nNot yet implemented."
-- bin/prompts/append-recap-scratch.md - "# Append Recap Scratch\n\nNot yet implemented."
-- bin/prompts/update-hotcache.md - "# Update Hot Cache\n\nNot yet implemented."
-- bin/prompts/semester-archive.md - "# Semester Archive\n\nNot yet implemented."
+### 4. Domain detection for math content
 
-### 6. .commandcode/agents/ stub
+When transcribing math content:
 
-Create directory with .gitkeep. Agent files come in Sprint 2+.
+- Analyze the mathematical content to determine the domain:
+  - Linear algebra / matrices / vectors → math domain
+  - Calculus / derivatives / integrals → math domain  
+  - Probability / statistics → math or quant domain
+  - Machine learning notation → cs domain
+  - Economics / finance math → quant domain
+- Default to math domain if uncertain
 
-### 7. .commandcode/skills/akasha-nightly/SKILL.md (§5.7, §6.2)
+### 5. _processed/ archival for images (§5.2 step 9)
 
-A valid cmdc skill file for /akasha-nightly. Documents the 4-step pipeline, with clear stubs marking items not yet implemented. Process steps: (1) process-inbox, (2) goal-adjust, (3) append-recap-scratch, (4) update-hotcache. Current state: all are stubs.
+When moving image sources to `_processed/`:
 
-### 8. .commandcode/skills/ directory
+- Preserve original filename with timestamp prefix: `YYYY-MM-DDTHH-mm-ss_original-name.jpg`
+- Never edit or modify the raw image
+- Set the `image_source` frontmatter in the corresponding math note to `Inbox/_processed/<archived-filename>`
 
-Create directory (populated by akasha-nightly/ subdir). No other skills yet - those come in later sprints.
+### 6. Error handling for unreadable images
 
-## Acceptance Criteria (§8)
+If the image cannot be transcribed (too blurry, unreadable handwriting):
 
-- cmd session reads hot.md via AGENTS.md (AGENTS.md has silent-read instruction)
-- Write to Knowledge/ triggers auto-commit (POST-write hook fires)
-- Write to Inbox/_processed/ is denied (PRE-write guard blocks it)
-- /akasha-nightly is invokable and surfaces stub state
-- No .commandcode/agents/ runtime files (Sprint 2+ boundary)
+- Move the image to `_processed/` anyway
+- Create a minimal `type: math` note with status: seed and a note: `> [!warning] Transcription pending — image was unreadable. Please review manually.`
+- Include the `image_source` link for manual review
+
+## Acceptance Criteria
+
+- Image files (`.jpg`, `.png`, etc.) in Inbox are detected by the ingest agent
+- Handwritten math in images is transcribed to LaTeX
+- Transcribed content uses `Templates/math.md` with `image_source` frontmatter
+- Original images preserved in `_processed/` with timestamped filenames
+- Uncertain transcriptions marked with `[?]`
+- Unreadable images create a pending-review note instead of failing silently
+- Math content correctly routed to appropriate domain (math/cs/quant)
+- Integration: a math photo placed in Inbox, processed via nightly, produces a linked Knowledge note with LaTeX

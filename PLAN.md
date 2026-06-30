@@ -1,61 +1,58 @@
-# Sprint 1 - Track 2: Harness Implementation Plan
+# Sprint 2 Track 2 — Vision (Photo-to-LaTeX) Plan
 
-**Plan:** `docs/superpowers/plans/sprint-1-track-harness.md`
-**Source:** TASK.md (feat/harness)
-**Depends on:** feat/substrate (paths must exist)
+**Plan:** `docs/superpowers/plans/sprint-2-track-vision.md`
+**Source:** TASK.md (feat/vision)
+**Depends on:** feat/ingest (akasha-ingest agent contract for image handling in step 1)
 
-## Task 1: Create .commandcode/ configuration
+## Task 1: Update akasha-ingest for image detection
 
-- [ ] Create `.commandcode/` directory
-- [ ] Create `.commandcode/settings.json` with PreToolUse hook (raw-guard) and PostToolUse hook (auto-commit)
+- [ ] Read current `.commandcode/agents/akasha-ingest.md` from ingest merge
+- [ ] Add image file extension detection in step 1: `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.webp`
+- [ ] Route image files to photo-to-LaTeX transcription sub-flow
+- [ ] Keep non-image files on standard text ingest path
 
-## Task 2: Create hook scripts
+## Task 2: Photo-to-LaTeX transcription rules
 
-- [ ] Create `.commandcode/hooks/` directory
-- [ ] Create `.commandcode/hooks/auto-commit.sh` — reads stdin JSON for cwd, git add targeted dirs, commit if changes
-- [ ] Create `.commandcode/hooks/raw-guard.sh` — reads stdin JSON, blocks writes to Inbox/_processed/ with deny response
-- [ ] Make both scripts executable (`chmod +x`)
+- [ ] Extend step 1 with transcription rules when image detected:
+  - Use `read_file` to read image (commandcode supports image reading natively)
+  - Transcribe handwritten math to clean LaTeX within Markdown
+  - Preserve diagrams as described figures: `> [!figure] Description`
+  - Maintain structure: problem statement → solution steps → final result
+  - Flag uncertain transcriptions with `[?]` notation
+  - The model's vision capability handles the actual transcription — the agent's job is to route and structure the output
 
-## Task 3: Replace AGENTS.md
+## Task 3: Math template wiring
 
-- [ ] Read existing `AGENTS.md`
-- [ ] Write new AGENTS.md with Akasha bootstrap content:
-  - Vault conventions + Inbox/Knowledge boundary
-  - Silent hot.md read instruction
-  - Two capture rails
-  - Six note types driven by frontmatter
-  - Zettelkasten + LYT MOCs methodology
-  - Design invariant I-1
-  - Status lifecycle (seed → growing → evergreen)
-  - Template references
+- [ ] When creating a Knowledge note from image: select `Templates/math.md`
+- [ ] Populate `image_source` frontmatter field with path to `Inbox/_processed/<archived-filename>`
+- [ ] Set `type: math` in frontmatter
+- [ ] Populate `## LaTeX` section with transcribed content
+- [ ] Fill `## Why it matters` and `## Connections` based on content analysis
 
-## Task 4: Create bin/ stubs
+## Task 4: Domain detection for math content
 
-- [ ] Create `bin/` directory
-- [ ] Create `bin/akasha-nightly.sh` — executable, echo stub message
-- [ ] Create `bin/pdf-extract.sh` — executable, echo stub message
-- [ ] Create `bin/prompts/` directory
-- [ ] Create `bin/prompts/process-inbox.md` — "# Process Inbox\n\nNot yet implemented."
-- [ ] Create `bin/prompts/goal-adjust.md` — "# Goal Adjust\n\nNot yet implemented."
-- [ ] Create `bin/prompts/append-recap-scratch.md` — "# Append Recap Scratch\n\nNot yet implemented."
-- [ ] Create `bin/prompts/update-hotcache.md` — "# Update Hot Cache\n\nNot yet implemented."
-- [ ] Create `bin/prompts/semester-archive.md` — "# Semester Archive\n\nNot yet implemented."
+- [ ] Analyze math content keywords to determine domain:
+  - Linear algebra, matrices, vectors, eigenvalues → math
+  - Calculus, derivatives, integrals, limits → math
+  - Probability, distributions, statistics → math or quant
+  - ML notation, neural networks, gradients → cs
+  - Finance, economics, optimization, utility → quant
+- [ ] Default to math domain if uncertain
 
-## Task 5: Create skills directory and akasha-nightly skill
+## Task 5: Image archival in _processed/
 
-- [ ] Create `.commandcode/skills/` directory
-- [ ] Create `.commandcode/skills/akasha-nightly/` directory
-- [ ] Create `.commandcode/skills/akasha-nightly/SKILL.md` — valid cmdc skill file documenting the 4-step pipeline with all steps marked as stubs
+- [ ] Move original image to `Inbox/_processed/YYYY-MM-DDTHH-mm-ss_original-name.ext`
+- [ ] Set `image_source` frontmatter in the math note to the archived path
+- [ ] Never modify the raw image
 
-## Task 6: Create agents stub
+## Task 6: Unreadable image handling
 
-- [ ] Create `.commandcode/agents/` directory with `.gitkeep`
+- [ ] If image can't be transcribed (too blurry, unreadable):
+  - Move to `_processed/` anyway
+  - Create minimal math note with `> [!warning] Transcription pending — image was unreadable.` and `status: seed`
+  - Include `image_source` link for manual review
+- [ ] Never fail silently — always create a note and always preserve the source
 
-## Task 7: Verification
+## Task 7: Commit
 
-- [ ] Verify settings.json is valid JSON
-- [ ] Verify auto-commit.sh and raw-guard.sh are executable
-- [ ] Verify AGENTS.md contains hot.md silent-read instruction
-- [ ] Verify bin/ scripts are executable and return 0
-- [ ] Verify /akasha-nightly skill file is valid markdown with correct skill metadata
-- [ ] Verify no .commandcode/agents/ runtime agents exist (only .gitkeep)
+- [ ] Commit to feat/vision with message: "akasha: Sprint 2 Track 2 — photo-to-LaTeX vision transcription"
