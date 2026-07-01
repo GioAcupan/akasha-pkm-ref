@@ -146,13 +146,13 @@ StudyMaterials/inbox/{session_id}/
 
 The parser agent receives the session directory path as its input and must detect it's a directory (not a filename) to route to the image-session workflow.
 
-### 4.2 Parse (`.commandcode/agents/akasha-material-parser.md`)
+### 4.2 Parse (`.commandcode/agents/akasha-mobile-parser.md`)
 
-Updated to handle image-based capture sessions (not just PDFs).
+A dedicated agent handles mobile capture sessions. (The original `akasha-material-parser` remains PDF-only.)
 
 1. Read `{session_dir}/manifest.json`
 2. Read all images in the session directory
-3. Pass images to the local Vision LLM for LaTeX transcription
+3. Pass images to the Vision LLM for LaTeX transcription (MathJax-compatible `$$` delimiters)
 4. Create a math note at `Knowledge/{domain}/{title-slug}.md` using `Templates/math.md` with:
    - `domain:` set to the payload's `domain`
    - `tags:` populated from the payload's `mocs`
@@ -190,6 +190,7 @@ This contract uses semantic versioning. The version in `akasha-schema.json` trac
 | 1.0.0 | 1 | Initial release |
 | 1.0.1 | 1 | PKM-side code written (plan stage) |
 | 1.1.0 | 1 | PKM-side implementation complete and verified with live R2. Notable implementation details: Python-based AWS Sig v4 signing (not bash openssl), path-style R2 addressing (`/<bucket>/<key>`), `.env` sourcing at vault root, R2 labels use Description column verbatim |
+| 1.2.0 | 1 | Split mobile parsing into dedicated `akasha-mobile-parser` agent (separate from PDF-only `akasha-material-parser`). MathJax-compatible `$$` delimiters for Obsidian rendering. `cmdc --model` flag instead of `cmd`. |
 
 **Compatibility rule:** The mobile app must refuse to capture if `akasha-schema.json.version` is higher than the version it was built against, and prompt the user to update the app.
 
@@ -198,7 +199,7 @@ This contract uses semantic versioning. The version in `akasha-schema.json` trac
 - [x] `bin/akasha-sync-schema.sh` — schema generation + Python Sig v4 upload to R2
 - [x] `bin/akasha-pull.sh` — R2 polling + session download + parser trigger
 - [x] `bin/akasha-notify.sh` — Expo push notification on parse failure
-- [x] `.commandcode/agents/akasha-material-parser.md` — image-session codepath
+- [x] `.commandcode/agents/akasha-mobile-parser.md` — dedicated mobile image-session agent (separate from PDF-only `akasha-material-parser`)
 - [x] `bin/akasha-nightly.sh` — schema sync hooked in as step [1/5], `.env` sourcing
 - [x] `.gitignore` — `.akasha/akasha-schema.json` and `.env`
 - [x] `.env.example` — placeholder template
