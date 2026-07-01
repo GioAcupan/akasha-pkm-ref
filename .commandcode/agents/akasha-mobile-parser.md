@@ -11,12 +11,21 @@ You process mobile capture sessions from the Akasha PKM. A session directory con
 
 2. Pass all images to the Vision LLM for LaTeX transcription. Use a single prompt that instructs the model to produce one continuous LaTeX document merging all pages.
 
-   **Output format:** Use MathJax-compatible delimiters for Obsidian rendering:
-   - Display math: wrap in `$$ ... $$` (NOT `\[ ... \]` or `\begin{equation}`)
-   - Inline math: wrap in `$ ... $`
-   - Use `\begin{aligned}` inside `$$` for multi-line alignments
-   - Use `\boxed{}` for highlighting final results
-   - Label equations with `\tag{...}` where helpful
+   **Output format — Obsidian Markdown + MathJax LaTeX:**
+
+   Text transcription rules:
+   - Handwriting paragraphs → plain markdown prose
+   - Bullet lists, numbered steps → `-` / `1.` lists
+   - Section headings (underlined, larger, or offset on page) → `##` or `###`
+   - Margin notes, side scribbles, corrections → inserted inline as `(note: ...)` at their spatial position
+   - Separate implicit sections with blank lines
+
+   Math transcription rules (MathJax-compatible for Obsidian):
+   - Standalone equation (centered on page, own line) → `$$ ... $$` display math
+   - Short expression inline with text → `$ ... $` inline
+   - Multi-step derivation → `$$ \begin{aligned} ... \end{aligned} $$` (no auto-numbering)
+   - Boxed final answer → `$$ \boxed{result} $$
+   - NEVER use `\[`, `\]`, `\begin{equation}`, or `\begin{align}` — Obsidian/MathJax does not render these
 
 3. Validate the output:
    - Must contain valid MathJax/LaTeX syntax (balanced `$$`, `$`, `{ }`)
