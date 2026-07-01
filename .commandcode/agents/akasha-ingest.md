@@ -1,6 +1,6 @@
 ---
 name: akasha-ingest
-description: Process one Inbox item — text note or photo of math. Read it, (transcribe to LaTeX if an image), route into an existing domain from _domains.md (propose new ones, never auto-create), navigate the MOC registry to place the note in the deepest matching MOC, cross-list across domains if relevant, extract concepts/entities, create or update atomic notes under Knowledge/, cross-link, update _index.md, then move the raw source to Inbox/_processed/. Delegate one agent per Inbox item.
+description: Process one Inbox item — text note or photo. Read it, (transcribe to LaTeX if math, invoke diagram parser for diagrams), route into an existing domain from _domains.md (propose new ones, never auto-create), navigate the MOC registry to place the note in the deepest matching MOC, cross-list across domains if relevant, extract concepts/entities, create or update atomic notes under Knowledge/, cross-link, update _index.md, then move the raw source to Inbox/_processed/. Delegate one agent per Inbox item.
 tools: read_file, write_file, edit_file, glob, grep, shell_command, think
 ---
 You integrate ONE source into the Knowledge base.
@@ -10,7 +10,7 @@ You integrate ONE source into the Knowledge base.
 Detect the file extension:
 
 **Image files** (`.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.webp`):
-Route to the photo-to-LaTeX transcription sub-flow below.
+Route to the photo transcription sub-flow below. The sub-flow classifies content as math or diagram and handles accordingly.
 
 **Non-image files** (`.md`, `.txt`, `.pdf`, etc.):
 Read as plain markdown/text and skip the transcription sub-flow. Proceed directly to step 2.
@@ -19,10 +19,7 @@ Read as plain markdown/text and skip the transcription sub-flow. Proceed directl
 
 1. Read the image using `read_file`. Command Code supports image reading natively — the vision model handles the actual transcription.
 2. Transcribe handwritten math into clean LaTeX within Markdown. Use `$...$` for inline math and `$$...$$` for display/block math.
-3. Preserve diagrams as described figures using the callout syntax:
-   ```
-   > [!figure] Brief description of the diagram
-   ```
+3. If the image contains a diagram (mind map, flowchart, system architecture, concept sketch), load the akasha-diagram-parser skill and follow its workflow. Do NOT use the `[!figure]` callout approach — delegate to the skill.
 4. Maintain the original mathematical structure:
    - **Problem statement** — what is being solved
    - **Solution steps** — logical progression of work
@@ -92,7 +89,7 @@ For each significant concept/entity: create OR update the atomic note under `Kno
 When the source is an image, use `Templates/math.md` as the primary template. Populate as follows:
 
 - **`type`**: `math`
-- **`image_source`**: Path to `Inbox/_processed/<archived-filename>` (use the timestamp-prefixed filename from step 9)
+- **`image_source`**: Path to `_assets/<session-id>/<filename>` (images are archived to _assets/ in step 10)
 - **`## LaTeX`**: Populate with the full transcribed LaTeX/Markdown content from step 1
 - **`## Why it matters`**: Analyze the content and explain the significance — is this a foundational technique, a practical application, a proof strategy?
 - **`## Connections`**: Link to related concepts already in the knowledge base, mention broader mathematical domains it connects to
@@ -128,7 +125,7 @@ If a claim contradicts an existing note, add a `> [!contradiction]` callout in t
 
 ## 10. Archive the source
 
-Move the raw source file to `Inbox/_processed/` using a timestamp prefix:
+**Non-image files** (`.md`, `.txt`, etc.): Move to `Inbox/_processed/` using a timestamp prefix:
 
 ```
 YYYY-MM-DDTHH-mm-ss_original-filename.ext
@@ -136,15 +133,17 @@ YYYY-MM-DDTHH-mm-ss_original-filename.ext
 
 For example: `2024-03-15T14-30-22_calculus-problem.jpg`
 
+**Image files**: Move to `_assets/` using the session folder structure (preserve original filename, no timestamp prefix). Create the session folder if it doesn't exist.
+
 **Do NOT edit the file in place.** The archive move must preserve the original content unchanged — only rename with the timestamp prefix.
 
-**For images**: After archiving, ensure the `image_source` frontmatter field in the created note points to the archived path: `Inbox/_processed/YYYY-MM-DDTHH-mm-ss_original-filename.ext`.
+**For images**: After archiving, ensure the `image_source` frontmatter field in the created note points to: `_assets/<session-id>/<original-filename>.ext`.
 
 ### 10a. Unreadable image handling
 
 If an image cannot be transcribed (too blurry, not legible, not mathematical content):
 
-1. **Still archive it**: Move to `Inbox/_processed/` with timestamp prefix as usual.
+1. **Still archive it**: Move to `_assets/<session-id>/` preserving the original filename.
 2. **Create a minimal math note** using `Templates/math.md` with:
    - `type: math`
    - `status: seed`
@@ -152,7 +151,7 @@ If an image cannot be transcribed (too blurry, not legible, not mathematical con
      ```
      > [!warning] Transcription pending — image was unreadable.
      ```
-   - `image_source` pointing to the archived path
+   - `image_source` pointing to `_assets/<session-id>/<filename>`
 3. Populate `title`, `domain`, `created`, `updated`, `tags`, and `sources` fields with best-effort metadata.
 4. Continue normal processing (MOC placement, _index.md update, report).
 
@@ -177,6 +176,7 @@ Output a concise report:
 
 - Create a new domain folder unprompted
 - Edit anything under `Inbox/_processed/`
+- Edit anything under `_assets/` (immutable raw capture archive)
 - Delete a raw capture
 - Duplicate a note already in `_index.md`
 - Create a new MOC without proposing it first
