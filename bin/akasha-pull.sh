@@ -135,7 +135,7 @@ for SESSION_DIR in "$INBOX"/*/; do
   if [ -f "${SESSION_DIR}manifest.json" ]; then
     echo "Parsing: $(basename "$SESSION_DIR") ${PARSER_MODEL_FLAG:+($AKASHA_PARSER_MODEL)}"
     # shellcheck disable=SC2086
-    cmd -p "$SESSION_DIR" \
+    cmdc -p "$SESSION_DIR" \
       $PARSER_MODEL_FLAG \
       --yolo --skip-onboarding --max-turns 30 2>&1 | tail -1
   fi
