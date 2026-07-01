@@ -117,15 +117,21 @@ The PKM scripts read credentials from an `.env` file at the vault root. Both `ak
 
 ### 4.1 Pull (`bin/akasha-pull.sh`)
 
-Runs periodically (cron, systemd timer, or manual trigger). Uses AWS Signature v4 via Python for all R2 requests.
+Runs on the local machine (laptop/desktop) when the device is on. Uses AWS Signature v4 via Python for all R2 requests.
 
 1. List `manifests/` in the R2 bucket via `GET ?list-type=2&prefix=manifests/`
 2. Parse manifest keys from the XML response
 3. For each new manifest:
    - Download `manifests/{session_id}.json` and all referenced images
    - Write them to `StudyMaterials/inbox/{session_id}/` (manifest + images flat in the directory)
-   - Delete the manifest and images from R2 (zero cloud state)
+   - Delete the manifest and images from R2
 4. For each downloaded session, invoke the parser via `cmd -p "$SESSION_DIR" --yolo --skip-onboarding --max-turns 30`
+
+**The R2 bucket is durable storage.** Captures sit in the bucket until the local machine picks them up. No rush — the `akasha-sync-schema.yml` GitHub Actions workflow keeps the schema fresh while the laptop is off. When the laptop comes online, `akasha-pull.sh` grabs everything waiting.
+
+**Recommended local scheduling (Windows):**
+- Task Scheduler → trigger at user logon, repeat every 30 minutes
+- Action: `C:\Program Files\Git\bin\bash.exe -l -c "cd /c/Users/<you>/akasha-pkm-ref && bash bin/akasha-pull.sh"`
 
 **Directory layout after download:**
 
@@ -197,4 +203,5 @@ This contract uses semantic versioning. The version in `akasha-schema.json` trac
 - [x] `.env.example` — placeholder template
 - [x] R2 bucket (`akasha-inbox`) created and live upload verified
 - [ ] `EXPO_PUSH_TOKEN` set in `.env`
-- [ ] `akasha-pull.sh` scheduled (cron/systemd timer)
+- [x] `.github/workflows/sync-schema.yml` — GitHub Actions cron for schema sync (GitHub secrets: `AKASHA_R2_ENDPOINT`, `AKASHA_R2_BUCKET`, `AKASHA_R2_ACCESS_KEY`, `AKASHA_R2_SECRET_KEY`)
+- [ ] `akasha-pull.sh` scheduled (Windows Task Scheduler, runs at user login + every 30 min while logged on)

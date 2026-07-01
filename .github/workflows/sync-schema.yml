@@ -1,0 +1,34 @@
+name: Sync Schema to R2
+
+on:
+  schedule:
+    # Every 6 hours — keeps the schema fresh even when laptop is off
+    - cron: "0 */6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "Knowledge/_domains.md"
+      - "Knowledge/*/_moc-registry.md"
+      - "bin/akasha-sync-schema.sh"
+  workflow_dispatch:
+
+jobs:
+  sync-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq openssl
+          python --version
+
+      - name: Generate and upload schema
+        env:
+          AKASHA_R2_ENDPOINT: ${{ secrets.AKASHA_R2_ENDPOINT }}
+          AKASHA_R2_BUCKET: ${{ secrets.AKASHA_R2_BUCKET }}
+          AKASHA_R2_ACCESS_KEY: ${{ secrets.AKASHA_R2_ACCESS_KEY }}
+          AKASHA_R2_SECRET_KEY: ${{ secrets.AKASHA_R2_SECRET_KEY }}
+        run: |
+          bash bin/akasha-sync-schema.sh
