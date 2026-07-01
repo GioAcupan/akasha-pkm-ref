@@ -19,8 +19,16 @@ The directory contains `manifest.json` and one or more `.jpg` images.
 2. Pass all images to the local Vision LLM for LaTeX transcription. Use a single prompt that 
    instructs the model to produce one continuous LaTeX document merging all pages.
 
+   **Output format:** Use MathJax-compatible delimiters for Obsidian rendering:
+   - Display math: wrap in `$$ ... $$` (NOT `\[ ... \]` or `\begin{equation}`)
+   - Inline math: wrap in `$ ... $`
+   - Use `\begin{aligned}` inside `$$` for multi-line alignments
+   - Use `\boxed{}` for highlighting final results
+   - Label equations with `\tag{...}` where helpful
+
 3. Validate the output:
-   - Must contain valid LaTeX syntax (balanced `$$`, `{ }`, `\begin`/`\end`)
+   - Must contain valid MathJax/LaTeX syntax (balanced `$$`, `$`, `{ }`)
+   - Must not contain `\[` or `\]` delimiters (Obsidian does not render these)
    - Must not contain the Vision LLM's refusal text ("I cannot", "I'm unable", "cannot read")
    - If validation fails: run `bash bin/akasha-notify.sh <session_id>` and stop
 
