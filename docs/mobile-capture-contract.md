@@ -2,7 +2,7 @@
 
 > **Authority:** This document lives in `akasha-pkm-ref`. The PKM repo defines the schema surface; the mobile app consumes it.
 > **TID:** [akasha_mobile_capture_tid.md](./akasha_mobile_capture_tid.md)
-> **Last updated:** 2026-06-30
+> **Last updated:** 2026-07-01
 
 ## 1. Schema (PKM → App)
 
@@ -34,7 +34,8 @@ The PKM repo publishes a schema file to R2 so the app knows which domains and MO
 
 **Rules:**
 - `domain.id` matches the folder name under `Knowledge/` (lowercase, kebab-case where multi-word)
-- `mocs[].id` matches the MOC name listed in that domain's `_moc-registry.md` (derived from the MOC note's `title` field, lowercased and kebab-cased)
+- `domain.label` is the **Description** column from the `_domains.md` "Approved" table (verbose, may contain colons — e.g. "Mathematics: linear algebra, calculus, statistics, proofs"). The app should display this label in the MOC picker dropdown.
+- `mocs[].id` and `mocs[].label` are derived from the MOC name in that domain's `_moc-registry.md` (lowercased and kebab-cased for `id`, original casing for `label`).
 - Domains with no active MOCs still appear, with an empty `mocs` array
 - `version` is a monotonic integer; bump on any breaking schema change
 
@@ -100,30 +101,43 @@ The app writes to `manifests/` and `images/`. It reads from `schema/`.
 
 ## 3. Environment Variables
 
-These must be set in the environment where the PKM daemon scripts run (laptop/desktop). The mobile app uses its own env (`EXPO_PUSH_TOKEN` + R2 endpoint and credentials).
+The PKM scripts read credentials from an `.env` file at the vault root. Both `akasha-nightly.sh` and `akasha-pull.sh` source this file automatically. The mobile app uses its own Expo-managed environment (separate from this file).
 
 | Variable | Set By | Used By | Description |
 |----------|--------|---------|-------------|
-| `AKASHA_R2_ENDPOINT` | User (`.env`) | `akasha-sync-schema.sh`, `akasha-pull.sh` | Cloudflare R2 S3-compatible endpoint URL |
-| `AKASHA_R2_BUCKET` | User (`.env`) | `akasha-sync-schema.sh`, `akasha-pull.sh` | R2 bucket name |
-| `AKASHA_R2_ACCESS_KEY` | User (`.env`) | `akasha-sync-schema.sh`, `akasha-pull.sh` | R2 access key ID |
-| `AKASHA_R2_SECRET_KEY` | User (`.env`) | `akasha-sync-schema.sh`, `akasha-pull.sh` | R2 secret access key |
-| `EXPO_PUSH_TOKEN` | User (`.env`) | `akasha-notify.sh` | Expo push token for the mobile device |
+| `AKASHA_R2_ENDPOINT` | `.env` | sync, pull scripts | Cloudflare R2 endpoint URL (e.g. `https://<account-id>.r2.cloudflarestorage.com`) |
+| `AKASHA_R2_BUCKET` | `.env` | sync, pull scripts | R2 bucket name (e.g. `akasha-inbox`) |
+| `AKASHA_R2_ACCESS_KEY` | `.env` | sync, pull scripts | R2 S3-compatible access key ID |
+| `AKASHA_R2_SECRET_KEY` | `.env` | sync, pull scripts | R2 S3-compatible secret access key |
+| `EXPO_PUSH_TOKEN` | `.env` | `akasha-notify.sh` | Expo push token for the mobile device |
 
-The mobile app uses its own Expo-managed environment for `EXPO_PUSH_TOKEN` and R2 credentials — these are separate from the PKM `.env` file.
+**Auth note:** The R2 credentials must be an S3-compatible access/secret key pair (not a `cfat_` Cloudflare API token). Create one in the R2 dashboard under "R2 API Tokens" with "Admin Read & Write" permission for the bucket. The scripts use AWS Signature v4 with region `auto` and path-style addressing.
 
 ## 4. PKM Ingestion Pipeline
 
 ### 4.1 Pull (`bin/akasha-pull.sh`)
 
-Runs periodically (cron, systemd timer, or manual trigger).
+Runs periodically (cron, systemd timer, or manual trigger). Uses AWS Signature v4 via Python for all R2 requests.
 
-1. List `manifests/` in the R2 bucket
-2. For each new manifest:
+1. List `manifests/` in the R2 bucket via `GET ?list-type=2&prefix=manifests/`
+2. Parse manifest keys from the XML response
+3. For each new manifest:
    - Download `manifests/{session_id}.json` and all referenced images
-   - Write them to a temporary directory: `StudyMaterials/inbox/{session_id}/`
+   - Write them to `StudyMaterials/inbox/{session_id}/` (manifest + images flat in the directory)
    - Delete the manifest and images from R2 (zero cloud state)
-3. For each downloaded session, invoke `akasha-material-parser` with the session directory path
+4. For each downloaded session, invoke the parser via `cmd -p "$SESSION_DIR" --yolo --skip-onboarding --max-turns 30`
+
+**Directory layout after download:**
+
+```
+StudyMaterials/inbox/{session_id}/
+├── manifest.json
+├── {session_id}_page1.jpg
+├── {session_id}_page2.jpg
+└── ...
+```
+
+The parser agent receives the session directory path as its input and must detect it's a directory (not a filename) to route to the image-session workflow.
 
 ### 4.2 Parse (`.commandcode/agents/akasha-material-parser.md`)
 
@@ -167,18 +181,20 @@ This contract uses semantic versioning. The version in `akasha-schema.json` trac
 | Contract Version | Schema Version | Changes |
 |-----------------|----------------|---------|
 | 1.0.0 | 1 | Initial release |
-| 1.0.1 | 1 | PKM-side implementation complete: sync/pull/notify scripts + parser agent update |
+| 1.0.1 | 1 | PKM-side code written (plan stage) |
+| 1.1.0 | 1 | PKM-side implementation complete and verified with live R2. Notable implementation details: Python-based AWS Sig v4 signing (not bash openssl), path-style R2 addressing (`/<bucket>/<key>`), `.env` sourcing at vault root, R2 labels use Description column verbatim |
 
 **Compatibility rule:** The mobile app must refuse to capture if `akasha-schema.json.version` is higher than the version it was built against, and prompt the user to update the app.
 
 ## 6. Implementation Checklist (PKM Side)
 
-- [x] `bin/akasha-sync-schema.sh` — schema generation + R2 upload
+- [x] `bin/akasha-sync-schema.sh` — schema generation + Python Sig v4 upload to R2
 - [x] `bin/akasha-pull.sh` — R2 polling + session download + parser trigger
 - [x] `bin/akasha-notify.sh` — Expo push notification on parse failure
 - [x] `.commandcode/agents/akasha-material-parser.md` — image-session codepath
-- [x] `bin/akasha-nightly.sh` — schema sync hooked in as step [1/5]
-- [x] `.gitignore` — `.akasha/akasha-schema.json` ignored
-- [ ] R2 bucket created and credentials set in `.env`
+- [x] `bin/akasha-nightly.sh` — schema sync hooked in as step [1/5], `.env` sourcing
+- [x] `.gitignore` — `.akasha/akasha-schema.json` and `.env`
+- [x] `.env.example` — placeholder template
+- [x] R2 bucket (`akasha-inbox`) created and live upload verified
 - [ ] `EXPO_PUSH_TOKEN` set in `.env`
 - [ ] `akasha-pull.sh` scheduled (cron/systemd timer)
