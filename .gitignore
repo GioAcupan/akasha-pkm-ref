@@ -1,2 +1,5 @@
 # Generated build artifacts
 .akasha/akasha-schema.json
+
+# Secrets
+.env

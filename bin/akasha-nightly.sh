@@ -11,6 +11,11 @@ set -euo pipefail
 
 VAULT_PATH="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Load credentials
+if [ -f "$VAULT_PATH/.env" ]; then
+  set -a; source "$VAULT_PATH/.env"; set +a
+fi
+
 echo "=== Akasha Nightly Pipeline ==="
 echo ""
 

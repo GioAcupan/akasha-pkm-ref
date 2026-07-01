@@ -78,42 +78,59 @@ if ! jq empty "$OUTPUT" 2>/dev/null; then
   exit 1
 fi
 
-# Upload to R2 using S3-compatible API
-# R2 requires signature v4; uses aws-cli-style curl with s3 protocol
-DATE_SHORT=$(date -u +"%Y%m%d")
-DATE_LONG=$(date -u +"%Y%m%dT%H%M%SZ")
-REGION="auto"
-SERVICE="s3"
-
-# Create signing key
-function hmac_sha256() {
-  echo -n "$2" | openssl dgst -sha256 -hmac "$1" -binary
-}
-
-SECRET_KEY_HEX=$(echo -n "AWS4$AKASHA_R2_SECRET_KEY" | xxd -p -c 256)
-DATE_KEY=$(hmac_sha256 "$SECRET_KEY_HEX" "$DATE_SHORT" | xxd -p -c 256)
-REGION_KEY=$(hmac_sha256 "$DATE_KEY" "$REGION" | xxd -p -c 256)
-SERVICE_KEY=$(hmac_sha256 "$REGION_KEY" "$SERVICE" | xxd -p -c 256)
-SIGNING_KEY=$(hmac_sha256 "$SERVICE_KEY" "aws4_request" | xxd -p -c 256)
-
-# Upload file
-SCHEMA_CONTENT=$(cat "$OUTPUT")
+# Upload to R2 using S3-compatible API with AWS Signature v4
+# Uses Python for reliable HMAC signing (portable across Windows/Linux/macOS)
 CONTENT_TYPE="application/json"
-PAYLOAD_HASH=$(echo -n "$SCHEMA_CONTENT" | openssl dgst -sha256 | cut -d' ' -f2)
+OBJECT_KEY="$AKASHA_R2_BUCKET/schema/akasha-schema.json"
+HOST="${AKASHA_R2_ENDPOINT#https://}"
 
-CANONICAL_REQUEST="PUT\n/schema/akasha-schema.json\n\nhost:${AKASHA_R2_ENDPOINT#https://}\nx-amz-content-sha256:$PAYLOAD_HASH\nx-amz-date:$DATE_LONG\n\nhost;x-amz-content-sha256;x-amz-date\n$PAYLOAD_HASH"
-STRING_TO_SIGN="AWS4-HMAC-SHA256\n$DATE_LONG\n$DATE_SHORT/$REGION/s3/aws4_request\n$(echo -ne "$CANONICAL_REQUEST" | openssl dgst -sha256 | cut -d' ' -f2)"
-SIGNATURE=$(echo -ne "$STRING_TO_SIGN" | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$SIGNING_KEY" | cut -d' ' -f2)
+# Hash the raw file (not via variable, which strips trailing newlines)
+PAYLOAD_HASH=$(openssl dgst -sha256 "$OUTPUT" | awk '{print $NF}')
+
+# Generate date + signature via Python
+SIGNING_OUTPUT=$(python -c "
+import hmac, hashlib
+from datetime import datetime, timezone
+
+access_key = '$AKASHA_R2_ACCESS_KEY'
+secret_key = '$AKASHA_R2_SECRET_KEY'
+bucket = '$AKASHA_R2_BUCKET'
+content_hash = '$PAYLOAD_HASH'
+
+now = datetime.now(timezone.utc)
+date_short = now.strftime('%Y%m%d')
+date_long = now.strftime('%Y%m%dT%H%M%SZ')
+host = '$HOST'
+region = 'auto'
+service = 's3'
+object_key = f'{bucket}/schema/akasha-schema.json'
+canonical_headers = f'host:{host}\\nx-amz-content-sha256:{content_hash}\\nx-amz-date:{date_long}\\n'
+signed_headers = 'host;x-amz-content-sha256;x-amz-date'
+canonical_request = f'PUT\\n/{object_key}\\n\\n{canonical_headers}\\n{signed_headers}\\n{content_hash}'
+canonical_hash = hashlib.sha256(canonical_request.encode()).hexdigest()
+string_to_sign = f'AWS4-HMAC-SHA256\\n{date_long}\\n{date_short}/auto/s3/aws4_request\\n{canonical_hash}'
+k_secret = f'AWS4{secret_key}'.encode()
+k_date = hmac.new(k_secret, date_short.encode(), hashlib.sha256).digest()
+k_region = hmac.new(k_date, region.encode(), hashlib.sha256).digest()
+k_service = hmac.new(k_region, service.encode(), hashlib.sha256).digest()
+k_signing = hmac.new(k_service, b'aws4_request', hashlib.sha256).digest()
+signature = hmac.new(k_signing, string_to_sign.encode(), hashlib.sha256).hexdigest()
+print(f'{date_short}\\n{date_long}\\n{signature}')
+")
+
+DATE_SHORT=$(echo "$SIGNING_OUTPUT" | sed -n '1p')
+DATE_LONG=$(echo "$SIGNING_OUTPUT" | sed -n '2p')
+SIGNATURE=$(echo "$SIGNING_OUTPUT" | sed -n '3p')
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
   -X PUT \
-  -H "Host: ${AKASHA_R2_ENDPOINT#https://}" \
+  -H "Host: $HOST" \
   -H "Content-Type: $CONTENT_TYPE" \
   -H "x-amz-content-sha256: $PAYLOAD_HASH" \
   -H "x-amz-date: $DATE_LONG" \
-  -H "Authorization: AWS4-HMAC-SHA256 Credential=$AKASHA_R2_ACCESS_KEY/$DATE_SHORT/$REGION/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=$SIGNATURE" \
+  -H "Authorization: AWS4-HMAC-SHA256 Credential=$AKASHA_R2_ACCESS_KEY/$DATE_SHORT/auto/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=$SIGNATURE" \
   --data-binary "@$OUTPUT" \
-  "$AKASHA_R2_ENDPOINT/schema/akasha-schema.json")
+  "$AKASHA_R2_ENDPOINT/$OBJECT_KEY")
 
 if [ "$HTTP_CODE" != "200" ]; then
   echo "Error: upload failed with HTTP $HTTP_CODE" >&2

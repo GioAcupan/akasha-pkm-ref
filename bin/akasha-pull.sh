@@ -7,30 +7,28 @@ set -euo pipefail
 VAULT_PATH="$(cd "$(dirname "$0")/.." && pwd)"
 INBOX="$VAULT_PATH/StudyMaterials/inbox"
 
+# Load credentials
+if [ -f "$VAULT_PATH/.env" ]; then
+  set -a; source "$VAULT_PATH/.env"; set +a
+fi
+
 # Verify env vars
 : "${AKASHA_R2_ENDPOINT:?AKASHA_R2_ENDPOINT not set}"
 : "${AKASHA_R2_BUCKET:?AKASHA_R2_BUCKET not set}"
 : "${AKASHA_R2_ACCESS_KEY:?AKASHA_R2_ACCESS_KEY not set}"
 : "${AKASHA_R2_SECRET_KEY:?AKASHA_R2_SECRET_KEY not set}"
 
-# S3 signing function
+# S3 signing function — generates AWS Signature v4 using Python for portable HMAC
 function s3_signed_request() {
   local METHOD="$1"
-  local OBJECT_KEY="$2"
+  local OBJECT_KEY_IN="$2"
   local PAYLOAD_FILE="$3"
   local CONTENT_TYPE="${4:-application/json}"
+  local OBJECT_KEY="$AKASHA_R2_BUCKET/$OBJECT_KEY_IN"
 
-  local DATE_SHORT=$(date -u +"%Y%m%d")
-  local DATE_LONG=$(date -u +"%Y%m%dT%H%M%SZ")
-  local REGION="auto"
-  local SERVICE="s3"
+  local HOST="${AKASHA_R2_ENDPOINT#https://}"
 
-  local SECRET_KEY_HEX=$(echo -n "AWS4$AKASHA_R2_SECRET_KEY" | xxd -p -c 256)
-  local DATE_KEY=$(echo -n "$DATE_SHORT" | openssl dgst -sha256 -hmac "$SECRET_KEY_HEX" -binary | xxd -p -c 256)
-  local REGION_KEY=$(echo -n "$REGION" | openssl dgst -sha256 -hmac "$DATE_KEY" -binary | xxd -p -c 256)
-  local SERVICE_KEY=$(echo -n "$SERVICE" | openssl dgst -sha256 -hmac "$REGION_KEY" -binary | xxd -p -c 256)
-  local SIGNING_KEY=$(echo -n "aws4_request" | openssl dgst -sha256 -hmac "$SERVICE_KEY" -hex | awk '{print $NF}')
-
+  # Compute payload hash
   local PAYLOAD_HASH
   if [ -n "$PAYLOAD_FILE" ] && [ -f "$PAYLOAD_FILE" ]; then
     PAYLOAD_HASH=$(openssl dgst -sha256 "$PAYLOAD_FILE" | awk '{print $NF}')
@@ -38,18 +36,47 @@ function s3_signed_request() {
     PAYLOAD_HASH=$(echo -n "" | openssl dgst -sha256 | awk '{print $NF}')
   fi
 
-  local HOST="${AKASHA_R2_ENDPOINT#https://}"
-  local CANONICAL_REQUEST="$METHOD\n/$OBJECT_KEY\n\nhost:$HOST\nx-amz-content-sha256:$PAYLOAD_HASH\nx-amz-date:$DATE_LONG\n\nhost;x-amz-content-sha256;x-amz-date\n$PAYLOAD_HASH"
-  local CANONICAL_HASH=$(echo -ne "$CANONICAL_REQUEST" | openssl dgst -sha256 | awk '{print $NF}')
-  local STRING_TO_SIGN="AWS4-HMAC-SHA256\n$DATE_LONG\n$DATE_SHORT/$REGION/s3/aws4_request\n$CANONICAL_HASH"
-  local SIGNATURE=$(echo -ne "$STRING_TO_SIGN" | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$SIGNING_KEY" | awk '{print $NF}')
+  # Generate signature via Python
+  local SIGNING_OUTPUT=$(python -c "
+import hmac, hashlib
+from datetime import datetime, timezone
+
+access_key = '$AKASHA_R2_ACCESS_KEY'
+secret_key = '$AKASHA_R2_SECRET_KEY'
+method = '$METHOD'
+object_key = '$OBJECT_KEY'
+host = '$HOST'
+content_hash = '$PAYLOAD_HASH'
+
+now = datetime.now(timezone.utc)
+date_short = now.strftime('%Y%m%d')
+date_long = now.strftime('%Y%m%dT%H%M%SZ')
+region = 'auto'
+service = 's3'
+canonical_headers = f'host:{host}\\nx-amz-content-sha256:{content_hash}\\nx-amz-date:{date_long}\\n'
+signed_headers = 'host;x-amz-content-sha256;x-amz-date'
+canonical_request = f'{method}\\n/{object_key}\\n\\n{canonical_headers}\\n{signed_headers}\\n{content_hash}'
+canonical_hash = hashlib.sha256(canonical_request.encode()).hexdigest()
+string_to_sign = f'AWS4-HMAC-SHA256\\n{date_long}\\n{date_short}/{region}/{service}/aws4_request\\n{canonical_hash}'
+k_secret = f'AWS4{secret_key}'.encode()
+k_date = hmac.new(k_secret, date_short.encode(), hashlib.sha256).digest()
+k_region = hmac.new(k_date, region.encode(), hashlib.sha256).digest()
+k_service = hmac.new(k_region, service.encode(), hashlib.sha256).digest()
+k_signing = hmac.new(k_service, b'aws4_request', hashlib.sha256).digest()
+signature = hmac.new(k_signing, string_to_sign.encode(), hashlib.sha256).hexdigest()
+print(f'{date_long}\\n{signature}')
+")
+
+  local DATE_LONG=$(echo "$SIGNING_OUTPUT" | sed -n '1p')
+  local SIGNATURE=$(echo "$SIGNING_OUTPUT" | sed -n '2p')
+  local DATE_SHORT="${DATE_LONG:0:8}"
 
   curl -s -X "$METHOD" \
     -H "Host: $HOST" \
     -H "Content-Type: $CONTENT_TYPE" \
     -H "x-amz-content-sha256: $PAYLOAD_HASH" \
     -H "x-amz-date: $DATE_LONG" \
-    -H "Authorization: AWS4-HMAC-SHA256 Credential=$AKASHA_R2_ACCESS_KEY/$DATE_SHORT/$REGION/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=$SIGNATURE" \
+    -H "Authorization: AWS4-HMAC-SHA256 Credential=$AKASHA_R2_ACCESS_KEY/$DATE_SHORT/auto/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=$SIGNATURE" \
     ${PAYLOAD_FILE:+-d "@$PAYLOAD_FILE"} \
     "$AKASHA_R2_ENDPOINT/$OBJECT_KEY"
 }
