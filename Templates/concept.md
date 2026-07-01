@@ -10,11 +10,7 @@ related: []
 sources: []
 ---
 
-## Definition
-
-
-
-## Why it matters
+# {{Title}}
 
 
 

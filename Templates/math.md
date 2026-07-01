@@ -11,11 +11,7 @@ sources: []
 image_source: ""
 ---
 
-## LaTeX
-
-
-
-## Why it matters
+# {{Title}}
 
 
 
