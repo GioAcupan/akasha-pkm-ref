@@ -1,0 +1,56 @@
+<h2>Proposed: akasha-diagram-parser skill</h2>
+<p class="subtitle">A dedicated skill the mobile parser invokes when it encounters diagram content</p>
+
+<div class="section">
+  <h3>Why a skill?</h3>
+  <p>The mobile parser agent currently has one job: "transcribe this math photo to LaTeX." Adding diagram parsing inline makes it bloated. A skill keeps the parser focused on <em>routing</em> — "is this math, diagram, or sketch?" — and delegates the format details to a specialized skill that can be tested and refined independently.</p>
+</div>
+
+<h3>Structure (references/ pattern)</h3>
+
+<div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:20px;margin:12px 0;font-family:monospace;font-size:13px;line-height:1.6;">
+  .commandcode/skills/akasha-diagram-parser/<br>
+  ├── <span style="color:#89b4fa;">SKILL.md</span><br>
+  │&nbsp;&nbsp;&nbsp;Main instruction: classification rules,<br>
+  │&nbsp;&nbsp;&nbsp;fallback chain, output specifications<br>
+  ├── <span style="color:#f5c2e7;">references/</span><br>
+  │&nbsp;&nbsp;&nbsp;├── <span style="color:#a6e3a1;">canvas-spec.md</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;JSON Canvas 1.0 spec (from obsidian-skills)<br>
+  │&nbsp;&nbsp;&nbsp;├── <span style="color:#a6e3a1;">canvas-examples.md</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;Mind map, system diagram examples<br>
+  │&nbsp;&nbsp;&nbsp;├── <span style="color:#a6e3a1;">mermaid-flowchart.md</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;Flowchart syntax for algorithm/process diagrams<br>
+  │&nbsp;&nbsp;&nbsp;├── <span style="color:#a6e3a1;">mermaid-mindmap.md</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;Mind map syntax (for simple hierachical ones)<br>
+  │&nbsp;&nbsp;&nbsp;├── <span style="color:#a6e3a1;">mermaid-sequence.md</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;Sequence diagram syntax<br>
+  │&nbsp;&nbsp;&nbsp;├── <span style="color:#a6e3a1;">validation-rules.md</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;What counts as pass/fail for each format<br>
+  │&nbsp;&nbsp;&nbsp;└── <span style="color:#a6e3a1;">failures.md</span><br>
+  │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Common failure modes and how to detect them<br>
+  └── <span style="color:#6c7086;">(adapts from existing skills, not duplicating)</span>
+</div>
+
+<h3>What goes in each file</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#89b4fa;">SKILL.md</div>
+    <ul style="color:#cdd6f4;font-size:12px;">
+      <li>Purpose: "Parse handwritten diagram photos into structured outputs"</li>
+      <li>Classification rubric (math vs diagram type)</li>
+      <li>Workflow: classify → select format → generate → validate → fallback if needed</li>
+      <li>Output spec: when to produce .canvas, when to produce Mermaid block, when to produce image-link note</li>
+      <li>Which reference doc to read for each diagram type</li>
+    </ul>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#a6e3a1;">References</div>
+    <ul style="color:#cdd6f4;font-size:12px;">
+      <li><strong>From obsidian-skills/json-canvas:</strong> Node/edge spec, ID generation, layout guidelines, validation checklist</li>
+      <li><strong>From mermaid-skill:</strong> Flowchart, mindmap, sequence diagram syntax docs</li>
+      <li><strong>New:</strong> Validation rules specific to transcription quality (confidence thresholds, [?] detection, node count minimums)</li>
+      <li><strong>New:</strong> Failure detection (common garbled output patterns)</li>
+    </ul>
+  </div>
+</div>

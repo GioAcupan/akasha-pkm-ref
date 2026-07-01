@@ -1,0 +1,68 @@
+<h2>Revised: One .md note always, .canvas embedded inside</h2>
+<p class="subtitle">The markdown note is always the entry point — canvas sits inside it</p>
+
+<div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:20px;margin:12px 0;font-family:monospace;font-size:13px;line-height:1.6;">
+  <div style="color:#89b4fa;font-weight:bold;">Pipeline (revised)</div>
+  <div style="margin-top:12px;">
+    <div style="color:#a6e3a1;">1. Classify image content</div>
+    <div style="color:#a6e3a1;">2. Generate outputs for this image:</div>
+    <div style="padding-left:16px;">
+      <div style="color:#f9e2af;">├── Math</div>
+      <div style="color:#6c7086;padding-left:16px;">→ .md note (type: math) with LaTeX body</div>
+      <div style="color:#f9e2af;">├── Diagram (structured)</div>
+      <div style="color:#6c7086;padding-left:16px;">→ <span style="color:#f5c2e7;">.canvas file</span> with transcribed nodes + edges</div>
+      <div style="color:#6c7086;padding-left:16px;">→ <span style="color:#f5c2e7;">.md note</span> (type: concept or existing type) with <code>![[diagram.canvas]]</code> embed</div>
+      <div style="color:#f9e2af;">├── Sketch / annotation</div>
+      <div style="color:#6c7086;padding-left:16px;">→ .md note (type: concept) with <code>[[_assets/.../image.jpg]]</code> link</div>
+      <div style="color:#f9e2af;">└── Mixed (math + diagram)</div>
+      <div style="color:#6c7086;padding-left:16px;">→ .md note + .canvas, canvas embedded mid-body with <code>![[diagram.canvas]]</code></div>
+    </div>
+    <div style="margin-top:12px;">
+      <div style="color:#a6e3a1;">3. Store original → <span style="color:#f5c2e7;">_assets/&lt;session_id&gt;/</span></div>
+      <div style="color:#a6e3a1;">4. Canvas files live alongside notes → <span style="color:#f5c2e7;">Knowledge/&lt;domain&gt;/</span></div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px;">Example: Mixed math + mind map page</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#89b4fa;">Knowledge/cs/binary-search-trees.md</div>
+    <div style="color:#6c7086;font-size:12px;margin-top:8px;">
+      <div>---</div>
+      <div>type: concept</div>
+      <div>domain: cs</div>
+      <div>tags: [dsa, trees, bst]</div>
+      <div>... ---</div>
+      <div style="margin-top:8px;"># Binary Search Trees</div>
+      <div style="margin-top:4px;">A BST where each node has at most two children. The left subtree contains only values less than the parent...</div>
+      <div style="margin-top:8px;color:#cdd6f4;">![[binary-search-trees.canvas]]</div>
+      <div style="margin-top:8px;">Traversal: in-order gives sorted sequence. Deletion has 3 cases...</div>
+      <div style="margin-top:8px;">## Connections</div>
+      <div style="color:#6c7086;">- [[tree-traversals]]</div>
+      <div style="color:#6c7086;">- [[balanced-bst]]</div>
+    </div>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#89b4fa;">Knowledge/cs/binary-search-trees.canvas</div>
+    <div style="color:#6c7086;font-size:12px;margin-top:8px;">
+      <div>{</div>
+      <div>"nodes": [</div>
+      <div>  {"id":"a1b2","type":"text","text":"BST Root: 50","x":400,"y":60},</div>
+      <div>  {"id":"c3d4","type":"text","text":"Left: 30\n20, 40","x":200,"y":160},</div>
+      <div>  {"id":"e5f6","type":"text","text":"Right: 70\n60, 80","x":600,"y":160},</div>
+      <div>  {"id":"g7h8","type":"file",</div>
+      <div>   "file":"_assets/session-xyz/page-photo.jpg","x":400,"y":380}</div>
+      <div>],</div>
+      <div>"edges": [</div>
+      <div>  {"id":"e1","fromNode":"a1b2","toNode":"c3d4"},</div>
+      <div>  {"id":"e2","fromNode":"a1b2","toNode":"e5f6"}</div>
+      <div>]</div>
+      <div>}</div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px;">What happens to existing math notes?</h3>
+<p class="subtitle">No change — pure-LaTeX photos still produce <code>type: math</code> notes with LaTeX body. This is additive.</p>

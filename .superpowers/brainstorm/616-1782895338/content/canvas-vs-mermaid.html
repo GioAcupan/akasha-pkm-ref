@@ -1,0 +1,95 @@
+<h2>Canvas vs Mermaid — split by diagram type</h2>
+<p class="subtitle">Each format has a natural fit. The classifier picks the right one.</p>
+
+<div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:20px;margin:12px 0;font-family:monospace;font-size:13px;line-height:1.6;">
+  <div style="color:#89b4fa;font-weight:bold;">Expanded classification tree</div>
+  <div style="margin-top:12px;">
+    <div style="color:#a6e3a1;">Image → Classify:</div>
+    <div style="padding-left:16px;">
+      <div style="color:#f9e2af;">├── Math</div>
+      <div style="color:#6c7086;padding-left:16px;">→ LaTeX + markdown → .md note (existing path)</div>
+      <div style="color:#f9e2af;">├── Mind map / spatial diagram</div>
+      <div style="color:#6c7086;padding-left:16px;">→ Canvas .canvas file + .md note with <code>![[.canvas]]</code></div>
+      <div style="color:#f9e2af;">├── Flowchart / process / algorithm</div>
+      <div style="color:#6c7086;padding-left:16px;">→ Mermaid block inside .md note</div>
+      <div style="color:#f9e2af;">├── System architecture</div>
+      <div style="color:#6c7086;padding-left:16px;">→ Canvas (too complex for Mermaid's constraints)</div>
+      <div style="color:#f9e2af;">└── Sketch / annotation</div>
+      <div style="color:#6c7086;padding-left:16px;">→ image-link note ([[_assets/image.jpg]])</div>
+    </div>
+  </div>
+</div>
+
+<h3>Trade-offs at a glance</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#89b4fa;">Canvas</div>
+    <div style="color:#a6e3a1;font-size:12px;margin-top:4px;">Best for: spatial/free-form</div>
+    <div class="pros-cons" style="margin-top:8px;">
+      <div class="pros">
+        <ul>
+          <li>Free positioning = preserves original layout</li>
+          <li>Can embed image file nodes</li>
+          <li>Group zones, colored edges, labels</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <ul>
+          <li>Separate .canvas file needed</li>
+          <li>Not inline-renderable in markdown</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#a6e3a1;">Mermaid</div>
+    <div style="color:#a6e3a1;font-size:12px;margin-top:4px;">Best for: structured/sequential</div>
+    <div class="pros-cons" style="margin-top:8px;">
+      <div class="pros">
+        <ul>
+          <li>Renders inline in .md — no extra file</li>
+          <li>Easy to edit text</li>
+          <li>Good for flowcharts, sequence diagrams</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <ul>
+          <li>No free positioning — auto-layout only</li>
+          <li>Limited colors/groups/images</li>
+          <li>Poor fit for mind maps</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Failure mitigation — both paths</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#f9e2af;">Canvas validation gates</div>
+    <ul style="color:#cdd6f4;font-size:12px;">
+      <li>Parse valid JSON</li>
+      <li>≥3 nodes with non-empty text</li>
+      <li>Edge IDs reference existing nodes</li>
+      <li>Coordinates within reasonable bounds (0–4000)</li>
+      <li>Few "<span style="color:#f38ba8;">[?]</span>" markers → confidence drop</li>
+      <li>Low confidence → image-link note</li>
+    </ul>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#f9e2af;">Mermaid validation gates</div>
+    <ul style="color:#cdd6f4;font-size:12px;">
+      <li>Valid Mermaid syntax (no unclosed quotes/brackets)</li>
+      <li>Nodes have IDs and text labels</li>
+      <li>Edges connect existing nodes</li>
+      <li>No unsupported node shapes/types</li>
+      <li>Low confidence → Canvas try → image-link fallback</li>
+    </ul>
+  </div>
+</div>
+
+<div style="background:#45475a;border-radius:8px;padding:12px;margin-top:16px;color:#cdd6f4;font-size:13px;">
+  <strong>Key mitigation:</strong> If <em>either</em> format produces low-confidence output, the note still gets written — but with a <code style="color:#f38ba8;">&gt; [!warning]</code> callout at the top saying the transcription may be inaccurate and linking to the original image.
+</div>

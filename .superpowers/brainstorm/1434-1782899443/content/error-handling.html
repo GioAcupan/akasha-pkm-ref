@@ -1,0 +1,29 @@
+<h2>Error handling and edge cases</h2>
+<p class="subtitle">What happens when things go wrong</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div style="background:#1e1e2e;border:1px solid #f38ba8;border-radius:12px;padding:16px;">
+    <div style="color:#f38ba8;font-weight:bold;">Can't classify the image</div>
+    <p style="color:#cdd6f4;font-size:12px;margin-top:4px;">Image is blurry, too messy, or ambiguous. → Create image-link note with <code>&gt; [!warning] Could not classify</code>. Image stored in <code>_assets/</code> for manual review.</p>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #f9e2af;border-radius:12px;padding:16px;">
+    <div style="color:#f9e2af;font-weight:bold;">Canvas generation fails validation</div>
+    <p style="color:#cdd6f4;font-size:12px;margin-top:4px;">Invalid JSON, &lt;3 nodes, all text is "[?]" markers. → Fall back to image-link note. Original image stays in <code>_assets/</code>.</p>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #f9e2af;border-radius:12px;padding:16px;">
+    <div style="color:#f9e2af;font-weight:bold;">Mermaid syntax is invalid</div>
+    <p style="color:#cdd6f4;font-size:12px;margin-top:4px;">Unclosed brackets, bad node references, unrenderable syntax. → Fall back to image-link note.</p>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #89b4fa;border-radius:12px;padding:16px;">
+    <div style="color:#89b4fa;font-weight:bold;">Mixed page: math + diagram</div>
+    <p style="color:#cdd6f4;font-size:12px;margin-top:4px;">Vision LLM extracts both. Math goes in the .md body, diagram goes in a .canvas embedded via <code>![[.canvas]]</code>. One note, two outputs.</p>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #a6e3a1;border-radius:12px;padding:16px;">
+    <div style="color:#a6e3a1;font-weight:bold;">Partial output (some good, some bad)</div>
+    <p style="color:#cdd6f4;font-size:12px;margin-top:4px;">Canvas has 5 good nodes + 3 "[?]" nodes. → Keep the good nodes. Add a <code>[?]</code> node at the bottom noting missing content. Don't discard the whole output.</p>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #cba6f7;border-radius:12px;padding:16px;">
+    <div style="color:#cba6f7;font-weight:bold;">Multiple sessions for same topic</div>
+    <p style="color:#cdd6f4;font-size:12px;margin-top:4px;">Existing note already exists. → Update existing note, append new content. Don't duplicate.</p>
+  </div>
+</div>

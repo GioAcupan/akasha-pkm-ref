@@ -1,0 +1,51 @@
+<h2>Impact on the mobile capture contract</h2>
+<p class="subtitle">The manifest.json contract between the app and the parser — does it change?</p>
+
+<div class="section">
+  <h3>Current manifest.json</h3>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#cdd6f4;">
+    {<br>
+    <span style="color:#f5c2e7;">  "domain"</span>: <span style="color:#a6e3a1;">"cs"</span>,<br>
+    <span style="color:#f5c2e7;">  "mocs"</span>: [<span style="color:#a6e3a1;">"dsa"</span>, <span style="color:#a6e3a1;">"trees"</span>],<br>
+    <span style="color:#f5c2e7;">  "timestamp"</span>: <span style="color:#a6e3a1;">"2026-07-01T08:00:00Z"</span>,<br>
+    <span style="color:#f5c2e7;">  "images"</span>: [<span style="color:#a6e3a1;">"page-01.jpg"</span>, <span style="color:#a6e3a1;">"page-02.jpg"</span>]<br>
+    }
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>Does the app need to tag image types?</h3>
+  <p>Two options for the manifest contract:</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="no-change" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>No contract change — parser handles classification</h3>
+      <p>Manifest stays as-is. The parser's Vision LLM classifies each image independently (math vs diagram vs sketch). The <code>domain</code> field is used as a hint but the parser can redirect per-image. Works because the classifier is built into the same Vision call that does transcription.</p>
+      <div class="pros"><h4>Pro</h4><ul><li>Zero app-side changes needed</li><li>Classification is nearly free (same Vision call)</li></ul></div>
+      <div class="cons"><h4>Con</h4><ul><li>No human override — if the LLM misclassifies, it's wrong</li></ul></div>
+    </div>
+  </div>
+  <div class="option" data-choice="per-image-type" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Add optional <code>type</code> field to manifest</h3>
+      <p>Add a <code>type</code> field per image in the manifest. User selects "math", "diagram", or "mixed" per photo when scanning. The parser uses this as a strong hint.</p>
+      <div style="background:#1e1e2e;border-radius:8px;padding:8px;margin-top:8px;font-family:monospace;font-size:11px;">
+        "images": [<br>
+        <span style="color:#f5c2e7;">  {"file": "page-01.jpg", "type": "math"},</span><br>
+        <span style="color:#f5c2e7;">  {"file": "page-02.jpg", "type": "diagram"}</span><br>
+        ]
+      </div>
+      <div class="pros"><h4>Pro</h4><ul><li>User can correct misclassification at capture time</li></ul></div>
+      <div class="cons"><h4>Con</h4><ul><li>Requires mobile app changes</li><li>Extra tap per photo during capture</li></ul></div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>My recommendation: start with A</h3>
+  <p style="color:#6c7086;">The Vision LLM is reliable enough at classifying page content (it can see the whole image). Starting with no contract change means the mobile app doesn't block the diagram feature. If we find misclassifications in practice, we can add the type hint later — the parser can be updated to read it without breaking the existing manifest format.</p>
+</div>

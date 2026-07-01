@@ -1,0 +1,59 @@
+<h2>Storage conventions — clean up the inconsistency</h2>
+<p class="subtitle">Currently: mobile parser → <code>_assets/</code>, ingest agent → <code>Inbox/_processed/</code>. Needs one source of truth.</p>
+
+<div class="section">
+  <h3>Where images live</h3>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;color:#cdd6f4;">
+    <div style="color:#a6e3a1;">_assets/</div>
+    <div style="color:#6c7086;padding-left:16px;">├── &lt;session_id_1&gt;/</div>
+    <div style="color:#6c7086;padding-left:32px;">├── page-01.jpg</div>
+    <div style="color:#6c7086;padding-left:32px;">├── page-02.jpg</div>
+    <div style="color:#6c7086;padding-left:32px;">└── manifest.json</div>
+    <div style="color:#6c7086;padding-left:16px;">└── &lt;session_id_2&gt;/</div>
+    <div style="color:#6c7086;padding-left:32px;">├── page-01.jpg</div>
+    <div style="color:#6c7086;padding-left:32px;">└── ...</div>
+    <div style="margin-top:8px;">
+      <span style="color:#f9e2af;">←</span> <span style="color:#6c7086;">All original images, immutable, per-session folders</span>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>What Inbox/_processed/ should contain</h3>
+  <p style="margin:4px 0;">Only <strong>non-image</strong> raw sources (text notes, PDF excerpts, markdown files). Images go to <code>_assets/</code> exclusively. This matches the "raw-guard.sh" invariant — immutability is per-pipeline, not per-directory.</p>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>Frontmatter <code>image_source</code> field</h3>
+  <p style="margin:4px 0;">Always points to the session folder in <code>_assets/</code>:</p>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:12px;margin-top:8px;font-family:monospace;font-size:12px;">
+    <span style="color:#89b4fa;">image_source:</span> <span style="color:#f5c2e7;">_assets/session-abc123/</span>
+  </div>
+  <p style="color:#6c7086;font-size:12px;margin-top:8px;">If a single image is referenced (not a session), it points to the specific file:</p>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:12px;margin-top:4px;font-family:monospace;font-size:12px;">
+    <span style="color:#89b4fa;">image_source:</span> <span style="color:#f5c2e7;">_assets/session-abc123/page-01.jpg</span>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>Where .canvas files live</h3>
+  <p>Alongside their .md note in <code>Knowledge/&lt;domain&gt;/</code>. Same slug, different extension.</p>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:12px;margin-top:8px;font-family:monospace;font-size:12px;">
+    Knowledge/cs/<br>
+    ├── binary-search-trees.md<br>
+    ├── <span style="color:#f5c2e7;">binary-search-trees.canvas</span><br>
+    ├── sorting-algorithms.md<br>
+    ├── <span style="color:#f5c2e7;">sorting-algorithms.canvas</span>
+  </div>
+  <p style="color:#6c7086;font-size:12px;margin-top:4px;">Canvas files are NOT registered in _moc-registry. The .md is the navigation entry point.</p>
+</div>
+
+<div class="section" style="margin-top:16px;">
+  <h3>What needs to change</h3>
+  <ul style="color:#cdd6f4;font-size:13px;">
+    <li><strong>akasha-mobile-parser</strong>: Update <code>image_source</code> from <code>StudyMaterials/inbox/</code> to <code>_assets/</code></li>
+    <li><strong>akasha-ingest</strong>: Change image archiving from <code>Inbox/_processed/</code> to <code>_assets/</code></li>
+    <li><strong>raw-guard.sh</strong>: Possibly extend to cover <code>_assets/</code> (immutable)</li>
+    <li><strong>_assets/ directory</strong>: Needs to be created in the vault root</li>
+  </ul>
+</div>

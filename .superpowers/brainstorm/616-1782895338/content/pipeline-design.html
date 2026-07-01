@@ -1,0 +1,66 @@
+<h2>Pipeline Flow</h2>
+<p class="subtitle" style="margin-bottom:0;">One photo → classification → typed output</p>
+
+<div class="section">
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:20px;margin:12px 0;font-family:monospace;font-size:13px;line-height:1.6;">
+    <div style="color:#89b4fa;font-weight:bold;">Modified akasha-mobile-parser</div>
+    <div style="color:#6c7086;margin-top:4px;">For each image in a capture session:</div>
+    <div style="margin-top:12px;">
+      <div style="color:#a6e3a1;">1. Classify content</div>
+      <div style="color:#6c7086;padding-left:16px;">Vision LLM decides: math / diagram / sketch / mixed</div>
+    </div>
+    <div style="margin-top:8px;">
+      <div style="color:#a6e3a1;">2. Route to path</div>
+      <div style="padding-left:16px;">
+        <div style="color:#f9e2af;">├── Math</div>
+        <div style="color:#6c7086;padding-left:16px;">→ Existing LaTeX transcription → math note</div>
+        <div style="color:#f9e2af;">├── Diagram (structured)</div>
+        <div style="color:#6c7086;padding-left:16px;">→ Transcribe to JSON Canvas 1.0 → .canvas file</div>
+        <div style="color:#f9e2af;">├── Sketch / annotation</div>
+        <div style="color:#6c7086;padding-left:16px;">→ Describe in text → concept note with [[image link]]</div>
+        <div style="color:#f9e2af;">└── Mixed content</div>
+        <div style="color:#6c7086;padding-left:16px;">→ Dominant type's output, secondary content embedded inline</div>
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <div style="color:#a6e3a1;">3. Store original image</div>
+      <div style="color:#6c7086;padding-left:16px;">→ Moves to <span style="color:#f5c2e7;">_assets/&lt;session_id&gt;/</span> regardless of path</div>
+    </div>
+    <div style="margin-top:8px;">
+      <div style="color:#a6e3a1;">4. Create output</div>
+      <div style="padding-left:16px;">
+        <div style="color:#89b4fa;">Math</div>
+        <div style="color:#6c7086;padding-left:16px;">→ Knowledge/<span style="color:#f5c2e7;">&lt;domain&gt;</span>/&lt;title&gt;.md (type: math)</div>
+        <div style="color:#89b4fa;">Diagram → Canvas</div>
+        <div style="color:#6c7086;padding-left:16px;">→ Knowledge/<span style="color:#f5c2e7;">&lt;domain&gt;</span>/&lt;title&gt;.canvas</div>
+        <div style="color:#89b4fa;">Diagram → fallback</div>
+        <div style="color:#6c7086;padding-left:16px;">→ Knowledge/<span style="color:#f5c2e7;">&lt;domain&gt;</span>/&lt;title&gt;.md (type: concept)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px;">Output types and their frontmatter</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#a6e3a1;">Canvas path (.canvas)</div>
+    <div style="color:#6c7086;font-size:12px;margin-top:8px;">
+      JSON Canvas 1.0 file. Text nodes with transcribed content, positioned spatially. Edges between nodes. Original photo linked as a file node inside the canvas.
+    </div>
+    <div style="color:#6c7086;font-size:12px;margin-top:8px;">
+      Canvas <em>is</em> the diagram — no separate .md file needed. Canvas IS the entry point.
+    </div>
+  </div>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:16px;">
+    <div style="font-weight:bold;color:#f9e2af;">Fallback path (.md)</div>
+    <div style="color:#6c7086;font-size:12px;margin-top:8px;">
+      Standard concept note with:
+      <code style="display:block;margin-top:6px;color:#cdd6f4;">[[_assets/session-id/image.jpg]]</code>
+      in the body instead of an embed.
+    </div>
+    <div style="color:#6c7086;font-size:12px;margin-top:8px;">
+      Description in the note tells you what the diagram shows. Click the link to open the image.
+    </div>
+  </div>
+</div>

@@ -1,0 +1,70 @@
+<h2>Three Approaches: How to capture drawn diagrams</h2>
+<p class="subtitle">Each has different failure modes. Which direction feels right?</p>
+
+<div class="options">
+  <div class="option" data-choice="image-metadata" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Image + Rich Metadata</h3>
+      <div class="pros-cons" style="margin-top:8px;">
+        <div class="pros"><h4>Low failure</h4>
+          <ul>
+            <li>Vision describes what it sees — almost never wrong</li>
+            <li>Photo is embedded as <code>![[photo.jpg]]</code></li>
+            <li>Frontmatter tags + description = searchable</li>
+          </ul>
+        </div>
+        <div class="cons"><h4>Downsides</h4>
+          <ul>
+            <li>Diagram is a static image — can't edit, link, or zoom nodes</li>
+            <li>Not deeply integrated into the knowledge graph</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="canvas" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Transcribe to Obsidian Canvas</h3>
+      <div class="pros-cons" style="margin-top:8px;">
+        <div class="pros"><h4>High payoff</h4>
+          <ul>
+            <li>Produces <code>.canvas</code> file — editable, zoomable in Obsidian</li>
+            <li>Each node is its own text — linkable to notes</li>
+            <li>Original image can be embedded <em>inside</em> the canvas</li>
+          </ul>
+        </div>
+        <div class="cons"><h4>Fails more</h4>
+          <ul>
+            <li>Vision must parse spatial layout + handwriting + connections</li>
+            <li>Messy sketches → garbled output</li>
+            <li>More tokens per capture</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="tiered" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Tiered: Try Canvas, Fall Back to Image</h3>
+      <div class="pros-cons" style="margin-top:8px;">
+        <div class="pros"><h4>Best of both</h4>
+          <ul>
+            <li>Classifier decides: structured (mind map) → try Canvas</li>
+            <li>Sketchy/annotated → image + metadata immediately</li>
+            <li>Canvas attempt has confidence check — falls back gracefully</li>
+          </ul>
+        </div>
+        <div class="cons"><h4>More complex</h4>
+          <ul>
+            <li>Two pipeline paths to maintain</li>
+            <li>Classifier can misclassify (rare but possible)</li>
+            <li>More tokens when it tries Canvas and fails</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

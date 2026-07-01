@@ -1,0 +1,57 @@
+<h2>Agent modifications — akasha-mobile-parser</h2>
+<p class="subtitle">The primary target. Changes in red, unchanged stays gray.</p>
+
+<div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:20px;margin:12px 0;font-family:monospace;font-size:12px;line-height:1.7;">
+  <div style="color:#6c7086;">## Process</div>
+  <div style="color:#6c7086;">1. Read manifest.json from the session directory.</div>
+
+  <div style="margin-top:8px;color:#a6e3a1;">2. For each image in the session, <span style="color:#f9e2af;">classify content type</span>:</div>
+  <div style="padding-left:16px;color:#f9e2af;">
+    ├── <strong>Math</strong> → existing LaTeX transcription (unchanged)<br>
+    ├── <strong>Mind map / spatial diagram</strong> → invoke akasha-diagram-parser for Canvas<br>
+    ├── <strong>Flowchart / process / algorithm</strong> → invoke akasha-diagram-parser for Mermaid<br>
+    ├── <strong>System architecture</strong> → invoke akasha-diagram-parser for Canvas<br>
+    ├── <strong>Sketch / annotation</strong> → describe + [[image link]] (fallback)<br>
+    └── <strong>Mixed (math + diagram)</strong> → math note with ![[diagram.canvas]] embed
+  </div>
+
+  <div style="margin-top:8px;color:#f9e2af;">
+    3. <strong>New: diagram processing sub-flow</strong><br>
+    <span style="color:#6c7086;padding-left:16px;display:block;">When image is classified as diagram:</span>
+    <span style="padding-left:16px;display:block;color:#cdd6f4;">
+      a. Load akasha-diagram-parser skill<br>
+      b. Generate diagram output (Canvas or Mermaid)<br>
+      c. Validate output per format's rules<br>
+      d. If low confidence → fall back to image-link note<br>
+      e. Create .canvas file alongside .md note (if Canvas path)<br>
+      f. Embed/link in .md note body
+    </span>
+  </div>
+
+  <div style="margin-top:8px;color:#a6e3a1;">
+    4. Validation:<br>
+    <span style="color:#6c7086;padding-left:16px;">— LaTeX validation (unchanged)</span><br>
+    <span style="color:#f9e2af;padding-left:16px;">— Canvas JSON validation (ref: validation/ references)</span><br>
+    <span style="color:#f9e2af;padding-left:16px;">— Mermaid syntax validation</span><br>
+    <span style="color:#6c7086;padding-left:16px;">— If validation fails: notify and stop</span>
+  </div>
+
+  <div style="margin-top:8px;color:#a6e3a1;">
+    5. Output files:<br>
+    <span style="color:#6c7086;padding-left:16px;">— Math: Knowledge/&lt;domain&gt;/&lt;title&gt;.md (type: math)</span><br>
+    <span style="color:#f9e2af;padding-left:16px;">— Canvas path: Knowledge/&lt;domain&gt;/&lt;title&gt;.md + .canvas</span><br>
+    <span style="color:#f9e2af;padding-left:16px;">— Mermaid path: Knowledge/&lt;domain&gt;/&lt;title&gt;.md (Mermaid block in body)</span><br>
+    <span style="color:#f9e2af;padding-left:16px;">— Image-link: Knowledge/&lt;domain&gt;/&lt;title&gt;.md (type: concept, [[image]] in body)</span>
+  </div>
+
+  <div style="margin-top:8px;color:#f9e2af;">
+    6. <strong>Updated: image_source frontmatter</strong><br>
+    <span style="color:#6c7086;padding-left:16px;">All paths → _assets/&lt;session_id&gt;/&lt;filename&gt;.jpg</span><br>
+    <span style="color:#6c7086;padding-left:16px;">(was: StudyMaterials/inbox/&lt;session_id&gt;/)</span>
+  </div>
+
+  <div style="margin-top:8px;color:#a6e3a1;">7. Move raw images to _assets/&lt;session_id&gt;/ and commit.</div>
+  <div style="color:#6c7086;">8. Report: session_id, domain, mocs, generated files, image count.</div>
+</div>
+
+<p style="color:#6c7086;margin-top:16px;">The ingest agent (akasha-ingest) also needs minor updates — its photo-to-LaTeX sub-flow currently uses <code>[!figure]</code> callouts for diagrams. It should invoke the same skill instead. Storage path also needs alignment (currently archives to <code>Inbox/_processed/</code> instead of <code>_assets/</code>).</p>

@@ -1,0 +1,1 @@
+{"type":"click","text":"A\n    \n      Classify → try format → fail → image link\n      Simple chain. If the image is classified as a flowchart and Mermaid output is garbage, go straight to image-link. Don't re-try as Canvas — same image, same difficulty. Saves tokens and complexity.","choice":"direct-fallback","id":null,"timestamp":1782897275996}

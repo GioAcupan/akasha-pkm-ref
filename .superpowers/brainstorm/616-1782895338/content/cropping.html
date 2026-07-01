@@ -1,0 +1,63 @@
+<h2>What do we do with the full-page photo?</h2>
+<p class="subtitle">The diagram is in the middle of a notebook page with other stuff</p>
+
+<div class="section">
+  <h3>Scenario</h3>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:24px;margin:12px 0;">
+    <div style="display:flex;gap:16px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:180px;height:240px;background:#f5f0e8;border-radius:8px;padding:16px;font-family:serif;color:#333;font-size:11px;line-height:1.5;position:relative;overflow:hidden;">
+        <div>Today's topic: Binary Search Trees</div>
+        <div style="margin-top:8px;">A BST is a tree where...</div>
+        <div style="margin-top:4px;">each node has at most</div>
+        <div>two children...</div>
+        <div style="margin-top:12px;font-weight:bold;">Properties:</div>
+        <div>• Left subtree &lt; node</div>
+        <div>• Right subtree &gt; node</div>
+        <div style="margin-top:12px;border:2px solid #e74c3c;border-radius:8px;padding:12px;position:relative;">
+          <div style="position:absolute;top:-8px;right:-8px;background:#e74c3c;color:white;border-radius:4px;padding:2px 6px;font-size:9px;">DIAGRAM</div>
+          <div style="font-size:10px;text-align:center;">
+            50<br>
+            ├── 30<br>
+            │   ├── 20<br>
+            │   └── 40<br>
+            └── 70<br>
+                ├── 60<br>
+                └── 80
+          </div>
+        </div>
+        <div style="margin-top:8px;">Traversal: in-order gives sorted order</div>
+        <div>Deletion has 3 cases...</div>
+      </div>
+      <div style="font-size:14px;color:#cdd6f4;">
+        <p>You photograph this page. The diagram is ~25% of the frame. Rest is surrounding text.</p>
+        <p style="margin-top:8px;">We want only the diagram area, not the full page.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Options I'm considering</h3>
+
+<div class="options">
+  <div class="option" data-choice="no-embed-canvas" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>Canvas path: don't embed the image at all</h3>
+      <p>The <code>.canvas</code> file <em>is</em> the diagram — text nodes with tree structure, edges, positioning. Original photo sits in <code>_assets/</code> for verification. No cropping needed.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="full-page-embed" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>Fallback path: embed the full page, describe the diagram</h3>
+      <p>When the tiered classifier can't produce a Canvas, the note embeds <code>![[photo.jpg]]</code> (full page) and the description tells you where to look. Acceptable since it's the fallback.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="ai-crop" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>AI crop the diagram region</h3>
+      <p>Vision LLM returns bounding box coordinates. Crop with ImageMagick before embedding. Full page stays in <code>_assets/</code>. Cropped version goes in the note. More complex pipeline but cleanest result.</p>
+    </div>
+  </div>
+</div>

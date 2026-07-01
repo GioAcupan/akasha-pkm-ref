@@ -1,0 +1,28 @@
+<h2>Fallback chain: one attempt, then image-link</h2>
+<p class="subtitle">Should Mermaid failure fall back to Canvas attempt? Or skip straight to image?</p>
+
+<div class="section">
+  <h3>Two options</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="direct-fallback" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Classify → try format → fail → image link</h3>
+      <p><strong>Simple chain.</strong> If the image is classified as a flowchart and Mermaid output is garbage, go straight to image-link. Don't re-try as Canvas — same image, same difficulty. Saves tokens and complexity.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="retry-other" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Classify → try → fail → try other format → fail → image link</h3>
+      <p><strong>Retry chain.</strong> If Mermaid fails, try Canvas in case it was a misclassification. More robust against classifier errors, but burns tokens on retries and adds pipeline complexity.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>My recommendation: go with A</h3>
+  <p style="color:#6c7086;">The classifier prompt can tell the LLM to be conservative — "if unsure whether this is a mind map or a flowchart, prefer the format that matches the spatial layout." Misclassifications will be rare enough that the token cost of retries isn't worth it. Can always add retries later if we see a pattern of misclassifications.</p>
+</div>

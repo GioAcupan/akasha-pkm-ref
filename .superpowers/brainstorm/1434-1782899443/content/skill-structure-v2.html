@@ -1,0 +1,48 @@
+<h2>Revised: Port all 38 Mermaid references</h2>
+<p class="subtitle">Full coverage, minimal cost. The references are already in the repo.</p>
+
+<div style="background:#1e1e2e;border:1px solid #313244;border-radius:12px;padding:20px;margin:12px 0;font-family:monospace;font-size:13px;line-height:1.6;">
+  .commandcode/skills/akasha-diagram-parser/<br>
+  ├── <span style="color:#89b4fa;">SKILL.md</span><br>
+  │&nbsp;&nbsp;&nbsp;Classification → format selection → generate → validate → fallback<br>
+  ├── <span style="color:#f5c2e7;">references/</span><br>
+  │&nbsp;&nbsp;&nbsp;├── <span style="color:#a6e3a1;">canvas/</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── spec.md&nbsp;&nbsp;<span style="color:#6c7086;">(JSON Canvas 1.0 from obsidian-skills)</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└── examples.md&nbsp;&nbsp;<span style="color:#6c7086;">(mind map, system diagram ex.)</span><br>
+  │&nbsp;&nbsp;&nbsp;├── <span style="color:#a6e3a1;">mermaid/</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── flowchart.md<br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── mindmap.md<br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── sequenceDiagram.md<br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── entityRelationshipDiagram.md&nbsp;&nbsp;<span style="color:#6c7086;">← you mentioned category theory</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── classDiagram.md<br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── stateDiagram.md<br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── ... <span style="color:#6c7086;">(all 38 files ported)</span><br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── config-theming.md<br>
+  │&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└── examples.md<br>
+  │&nbsp;&nbsp;&nbsp;└── <span style="color:#a6e3a1;">validation/</span><br>
+  │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── confidence-thresholds.md&nbsp;&nbsp;<span style="color:#6c7086;">(new)</span><br>
+  │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── failure-patterns.md&nbsp;&nbsp;<span style="color:#6c7086;">(new)</span><br>
+  └── <span style="color:#6c7086;">(port from existing, adapt for transcription context)</span>
+</div>
+
+<div class="section" style="margin-top:20px;">
+  <h3>What changes vs the source skills</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:16px;">
+      <div style="font-weight:bold;color:#a6e3a1;">From mermaid-skill</div>
+      <ul style="color:#cdd6f4;font-size:12px;">
+        <li>Port all 38 reference files as-is</li>
+        <li>Add a "transcription context" section to each — how to translate a hand-drawn version of this diagram type</li>
+        <li>Example: for ERD, "read entity boxes from handwriting, extract attribute names, identify relationship lines between entities"</li>
+      </ul>
+    </div>
+    <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:16px;">
+      <div style="font-weight:bold;color:#89b4fa;">From json-canvas</div>
+      <ul style="color:#cdd6f4;font-size:12px;">
+        <li>Port spec + examples</li>
+        <li>Add guidance on proportional positioning — map drawn layout to canvas coordinates</li>
+        <li>Add guidance on handling overlapping/messy hand-drawn elements</li>
+      </ul>
+    </div>
+  </div>
+</div>

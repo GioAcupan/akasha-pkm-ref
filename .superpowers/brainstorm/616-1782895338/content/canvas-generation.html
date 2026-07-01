@@ -1,0 +1,60 @@
+<h2>Canvas Generation: How it works</h2>
+<p class="subtitle">The Vision LLM produces valid JSON Canvas 1.0 from a photo of a diagram</p>
+
+<div class="section">
+  <h3>Prompt structure</h3>
+  <p>The LLM receives the image with instructions to produce JSON Canvas output:</p>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:16px;margin:8px 0;font-family:monospace;font-size:12px;color:#a6e3a1;">
+    "This is a photo of a hand-drawn diagram. Transcribe it to JSON Canvas 1.0 format.<br>
+    Rules:<br>
+    • Each bubble/box → text node with transcribed handwriting<br>
+    • Arrows/lines → edges with directional arrows<br>
+    • Labels on arrows → edge.label text<br>
+    • Group related nodes with group nodes (labeled rectangles)<br>
+    • Use colors: green for correct/yes, red for wrong/no, blue for neutral<br>
+    • Position nodes proportionally to their layout on the page<br>
+    • The canvas file will be embedded in a note — text nodes only, no file/image nodes needed here<br>
+    • Output ONLY valid JSON Canvas — no markdown wrapping, no explanation"
+  </div>
+</div>
+
+<div class="section">
+  <h3>Validation</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
+    <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:12px;">
+      <div style="color:#a6e3a1;font-weight:bold;">✅ Must check</div>
+      <ul style="color:#6c7086;font-size:12px;margin:4px 0 0 0;padding-left:16px;">
+        <li>Valid JSON parse</li>
+        <li>Has "nodes" array</li>
+        <li>Each node has id, type, text, x, y</li>
+        <li>16-char hex IDs per spec</li>
+        <li>Edge references are valid node IDs</li>
+        <li>No prose wrapper, no ```json</li>
+      </ul>
+    </div>
+    <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:12px;">
+      <div style="color:#f9e2af;font-weight:bold;">⚠️ Confidence check</div>
+      <ul style="color:#6c7086;font-size:12px;margin:4px 0 0 0;padding-left:16px;">
+        <li>Node count &lt; 3 → low confidence (too sparse)</li>
+        <li>All node text is empty → low confidence</li>
+        <li>Many "[unreadable]" entries → flag</li>
+        <li>Coordinates don't match spatial layout → low confidence</li>
+        <li>Low confidence → fall back to image-link note</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Canvas file storage</h3>
+  <p style="margin:4px 0;">Canvas files are first-class knowledge artifacts. They live alongside notes:</p>
+  <div style="background:#1e1e2e;border:1px solid #313244;border-radius:8px;padding:12px;margin-top:8px;font-family:monospace;font-size:12px;color:#cdd6f4;">
+    Knowledge/cs/<br>
+    ├── binary-search-trees.md<br>
+    ├── binary-search-trees.canvas&nbsp;&nbsp;<span style="color:#6c7086;">&lt;-- paired artifact</span><br>
+    ├── sorting-algorithms.md<br>
+    ├── sorting-algorithms.canvas&nbsp;&nbsp;<span style="color:#6c7086;">&lt;-- paired artifact</span><br>
+    └── _moc-registry.md
+  </div>
+  <p style="margin-top:8px;color:#6c7086;font-size:12px;">The .md file embeds the .canvas with <code>![[filename.canvas]]</code>. Canvas files are NOT listed in _moc-registry — the .md note carries all the frontmatter and navigation metadata.</p>
+</div>
