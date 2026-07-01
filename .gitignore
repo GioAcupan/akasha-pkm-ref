@@ -3,3 +3,6 @@
 
 # Secrets
 .env
+
+# Runtime logs
+akasha-pull.log

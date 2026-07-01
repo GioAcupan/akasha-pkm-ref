@@ -204,4 +204,4 @@ This contract uses semantic versioning. The version in `akasha-schema.json` trac
 - [x] R2 bucket (`akasha-inbox`) created and live upload verified
 - [ ] `EXPO_PUSH_TOKEN` set in `.env`
 - [x] `.github/workflows/sync-schema.yml` — GitHub Actions cron for schema sync (GitHub secrets: `AKASHA_R2_ENDPOINT`, `AKASHA_R2_BUCKET`, `AKASHA_R2_ACCESS_KEY`, `AKASHA_R2_SECRET_KEY`)
-- [ ] `akasha-pull.sh` scheduled (Windows Task Scheduler, runs at user login + every 30 min while logged on)
+- [x] `akasha-pull.sh` scheduled (Task Scheduler: `Akasha-Pull`, every 30 min via `bin/akasha-pull.bat` wrapper)
