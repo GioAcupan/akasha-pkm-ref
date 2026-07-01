@@ -6,3 +6,6 @@
 
 # Runtime logs
 akasha-pull.log
+
+# Reference repos (local development only)
+docs_and_references/reference-repos/
