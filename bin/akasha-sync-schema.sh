@@ -19,22 +19,18 @@ mkdir -p "$VAULT_PATH/.akasha"
 # Build the schema JSON
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-echo '{' > "$OUTPUT"
-echo '  "version": 1,' >> "$OUTPUT"
-echo "  \"generated\": \"$TIMESTAMP\"," >> "$OUTPUT"
-echo '  "domains": [' >> "$OUTPUT"
-
-FIRST_DOMAIN=true
-while IFS='|' read -r _leading domain _rest; do
+DOMAINS_JSON=""  # Accumulate domain JSON objects, comma-separated
+while IFS='|' read -r _leading domain folder description _rest; do
   # Skip header and separator lines
   [[ "$domain" =~ ^[[:space:]]*$ ]] && continue
   domain=$(echo "$domain" | xargs)
+  description=$(echo "$description" | xargs)
   [[ "$domain" == "Domain" ]] && continue
   [[ "$domain" == "---"* ]] && continue
   [[ -z "$domain" ]] && continue
 
-  # Use domain name as label (table has no dedicated label column)
-  label="$domain"
+  # Use description as label, fall back to domain name
+  label="${description:-$domain}"
 
   # Build MOC list from the domain's _moc-registry.md
   mocs_json="[]"
@@ -56,21 +52,23 @@ while IFS='|' read -r _leading domain _rest; do
     [ -z "$mocs_json" ] && mocs_json="[]"
   fi
 
-  if [ "$FIRST_DOMAIN" = true ]; then
-    FIRST_DOMAIN=false
-  else
-    echo '    ,' >> "$OUTPUT"
+  if [ -n "$DOMAINS_JSON" ]; then
+    DOMAINS_JSON="${DOMAINS_JSON},
+"
   fi
-
-  echo "    {" >> "$OUTPUT"
-  echo "      \"id\": \"$domain\"," >> "$OUTPUT"
-  echo "      \"label\": \"$label\"," >> "$OUTPUT"
-  echo "      \"mocs\": $mocs_json" >> "$OUTPUT"
-  echo "    }" >> "$OUTPUT"
-
+  DOMAINS_JSON="${DOMAINS_JSON}    {
+      \"id\": \"$domain\",
+      \"label\": \"$label\",
+      \"mocs\": $mocs_json
+    }"
 done < "$VAULT_PATH/Knowledge/_domains.md"
 
-echo '' >> "$OUTPUT"
+# Write the JSON
+echo '{' > "$OUTPUT"
+echo '  "version": 1,' >> "$OUTPUT"
+echo "  \"generated\": \"$TIMESTAMP\"," >> "$OUTPUT"
+echo '  "domains": [' >> "$OUTPUT"
+echo "$DOMAINS_JSON" >> "$OUTPUT"
 echo '  ]' >> "$OUTPUT"
 echo '}' >> "$OUTPUT"
 
