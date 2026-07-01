@@ -125,11 +125,18 @@ fi
 echo ""
 echo "Downloaded $MANIFEST_COUNT sessions. Triggering parser..."
 
-# Trigger parser for each session
+# Parser model override (set AKASHA_PARSER_MODEL in .env to pin a specific model)
+PARSER_MODEL_FLAG=""
+if [ -n "${AKASHA_PARSER_MODEL:-}" ]; then
+  PARSER_MODEL_FLAG="--model $AKASHA_PARSER_MODEL"
+fi
+
 for SESSION_DIR in "$INBOX"/*/; do
   if [ -f "${SESSION_DIR}manifest.json" ]; then
-    echo "Parsing: $(basename "$SESSION_DIR")"
+    echo "Parsing: $(basename "$SESSION_DIR") ${PARSER_MODEL_FLAG:+($AKASHA_PARSER_MODEL)}"
+    # shellcheck disable=SC2086
     cmd -p "$SESSION_DIR" \
+      $PARSER_MODEL_FLAG \
       --yolo --skip-onboarding --max-turns 30 2>&1 | tail -1
   fi
 done

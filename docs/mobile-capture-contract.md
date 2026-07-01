@@ -110,6 +110,7 @@ The PKM scripts read credentials from an `.env` file at the vault root. Both `ak
 | `AKASHA_R2_ACCESS_KEY` | `.env` | sync, pull scripts | R2 S3-compatible access key ID |
 | `AKASHA_R2_SECRET_KEY` | `.env` | sync, pull scripts | R2 S3-compatible secret access key |
 | `EXPO_PUSH_TOKEN` | `.env` | `akasha-notify.sh` | Expo push token for the mobile device |
+| `AKASHA_PARSER_MODEL` | `.env` (optional) | `akasha-pull.sh` | Model override for Vision LLM parsing (e.g. `claude-sonnet-4-20250514`). Empty = default |
 
 **Auth note:** The R2 credentials must be an S3-compatible access/secret key pair (not a `cfat_` Cloudflare API token). Create one in the R2 dashboard under "R2 API Tokens" with "Admin Read & Write" permission for the bucket. The scripts use AWS Signature v4 with region `auto` and path-style addressing.
 
