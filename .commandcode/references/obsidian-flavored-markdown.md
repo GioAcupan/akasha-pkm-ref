@@ -7,6 +7,7 @@ Reference for all OFM syntax used by Akasha agents when creating vault content.
 ```yaml
 ---
 title: "Note Title"
+description: "Brief summary of the note" # required; quote if contains colons
 type: concept         # concept, math, source, entity, question, moc
 status: seed          # seed, growing, evergreen
 domain: cs/math       # domain path
@@ -19,7 +20,7 @@ updated: 2026-07-02   # YYYY-MM-DD
 ---
 ```
 
-Quote `title` and `description` values when they contain colons.
+Quote frontmatter values when they contain colons.
 
 ## Wikilinks
 
