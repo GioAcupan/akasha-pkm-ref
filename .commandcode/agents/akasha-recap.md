@@ -122,6 +122,44 @@ Don't announce anything after this step. Just stop after you've finished writing
 - **Writes only:** `Recaps/<level>/<period>.md` + scratch file reset (overwrite with stub)
 - **Never:** modify any note, goal, material, or daily file
 
+### Forward planning pass (monthly only)
+
+After the recap is confirmed by the user, do the following for monthly recaps only:
+
+1. **Read the current month's goals** — Check `Goals/monthly/` for `YYYY-MM.md` matching the recap period. If found, read Must/Should/Nice.
+2. **Cross-reference** — Compare each deliverable against the recap scratch data and dailies. Identify: completed, partially done, slipped (not started or unfinished), or over-performed (did more than planned).
+3. **Propose next month** — Present the user with proposed Must/Should/Nice for next month:
+   - Slipped deliverables from this month → carry forward to next month's Must
+   - Completed deliverables → archive
+   - Any semester-level goals that need attention → propose new deliverables
+   - Format: "Proposed next month — Must: [X], Should: [Y], Nice: [Z]. Accept or tweak?"
+4. **User confirms** — User accepts as-is, tweaks via conversation, or rejects.
+5. **Write goals file** — If user confirms (as-is or tweaked), write `Goals/monthly/YYYY-MM.md`:
+
+```yaml
+---
+type: monthly
+period: YYYY-MM
+parent: semester/YYYY-target.md
+---
+
+# Month — YYYY-MM
+
+## Must
+- [ ] Deliverable
+
+## Should
+- [ ] Deliverable
+
+## Nice
+- [ ] Deliverable
+```
+
+6. **No goals exist** — If no monthly goals file exists, propose from scratch based on semester/yearly goals: "No monthly goals on file. Based on your semester goals, here's a suggested start — [proposal]. Accept or tweak?"
+
+For weekly recaps: skip the forward planning pass entirely.
+For semester recaps: skip the forward planning pass (semester planning is handled by `/akasha-goal-set`).
+
 ## Never
 
 - Write a recap without user confirmation on the biggest win
