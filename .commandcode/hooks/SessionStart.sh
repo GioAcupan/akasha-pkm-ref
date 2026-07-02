@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# WSL compat: use jq.exe when native jq isn't available
+command -v jq.exe >/dev/null 2>&1 && jq() { jq.exe "$@"; }
+
 VAULT="$PWD"
 
 # Today's date
@@ -53,14 +56,16 @@ MATERIALS=$(ls -1 "$VAULT/StudyMaterials/active/"*.md 2>/dev/null | head -3 | wh
   echo "  - $(basename "$f" .md)"
 done) || true
 
-# Output context block
-echo "# Session Context — $DATE ($DAY)"
-echo "$DAILY_STATUS"
-echo "$WEEKLY_AGE"
-echo "$STREAK"
-echo "$INBOX"
+# Build context message
+CTX="# Session Context — $DATE ($DAY)
+$DAILY_STATUS
+$WEEKLY_AGE
+$STREAK
+$INBOX"
 if [ -n "$MATERIALS" ]; then
-  echo "Active materials:"
-  echo "$MATERIALS"
+  CTX="$CTX
+Active materials:
+$MATERIALS"
 fi
-echo ""
+
+jq -n --arg msg "$CTX" '{systemMessage: $msg}'
