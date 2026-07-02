@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-VAULT="$HOME/Documents/Gio Files/AKASHA/akasha-pkm-ref"
+VAULT="$PWD"
 
 # Today's date
 DATE=$(date '+%Y-%m-%d')
@@ -20,7 +20,7 @@ else
 fi
 
 # Days since last weekly review — use file mtime for reliability
-LAST_WEEKLY=$(ls -1t "$VAULT/Reviews/"*.md 2>/dev/null | head -1)
+LAST_WEEKLY=$(ls -1t "$VAULT/Reviews/"*.md 2>/dev/null | head -1) || true
 if [ -n "$LAST_WEEKLY" ]; then
   FILE_MTIME=$(stat -c %Y "$LAST_WEEKLY" 2>/dev/null || date -r "$LAST_WEEKLY" +%s 2>/dev/null || echo 0)
   NOW=$(date +%s)
@@ -35,23 +35,23 @@ fi
 STREAK_FILE="$VAULT/.akasha/streak.md"
 if [ -f "$STREAK_FILE" ]; then
   # Count date lines (YYYY-MM-DD) as streak entries
-  STREAK_LEN=$(grep -cP '^\d{4}-\d{2}-\d{2}' "$STREAK_FILE" 2>/dev/null || echo "?")
-  STUDY=$(grep -c "study: ✅" "$STREAK_FILE" 2>/dev/null && echo "✅" || echo "❌")
-  MOVE=$(grep -c "move: ✅" "$STREAK_FILE" 2>/dev/null && echo "✅" || echo "❌")
-  CONSUME=$(grep -c "consume: ✅" "$STREAK_FILE" 2>/dev/null && echo "✅" || echo "❌")
+  STREAK_LEN=$(grep -cP '^\d{4}-\d{2}-\d{2}' "$STREAK_FILE" 2>/dev/null || true)
+  STUDY=$(grep -q "study: ✅" "$STREAK_FILE" 2>/dev/null && echo "✅" || echo "❌")
+  MOVE=$(grep -q "move: ✅" "$STREAK_FILE" 2>/dev/null && echo "✅" || echo "❌")
+  CONSUME=$(grep -q "consume: ✅" "$STREAK_FILE" 2>/dev/null && echo "✅" || echo "❌")
   STREAK="Streak: $STREAK_LEN days (study $STUDY move $MOVE consume $CONSUME)"
 else
   STREAK="Streak: not initialized"
 fi
 
 # Inbox count
-INBOX_COUNT=$(find "$VAULT/Inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
+INBOX_COUNT=$(find "$VAULT/Inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l) || true
 INBOX="Inbox: $INBOX_COUNT pending"
 
 # Active materials (max 3)
 MATERIALS=$(ls -1 "$VAULT/StudyMaterials/active/"*.md 2>/dev/null | head -3 | while read f; do
   echo "  - $(basename "$f" .md)"
-done)
+done) || true
 
 # Output context block
 echo "# Session Context — $DATE ($DAY)"

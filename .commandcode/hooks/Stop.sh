@@ -5,11 +5,14 @@
 # Anti-spam: only triggers once per 3 turns (tracked via cache file).
 set -euo pipefail
 
+# WSL compat: use jq.exe when native jq isn't available
+command -v jq.exe >/dev/null 2>&1 && jq() { jq.exe "$@"; }
+
 CACHE="$HOME/.commandcode/.skill-discovery-cache"
 TURN_FILE="$HOME/.commandcode/.turn-counter"
 
-# Read stdin payload
-payload=$(cat)
+# Read stdin payload (strip \r for WSL compat)
+payload=$(cat | tr -d '\r')
 
 # Auto-increment turn counter (Stop hook fires every turn)
 TURN=0
@@ -18,7 +21,7 @@ TURN=$((TURN + 1))
 echo "$TURN" > "$TURN_FILE"
 
 # Extract user message text using jq (consistent with other hooks)
-user_msg=$(printf '%s' "$payload" | jq -r '.messages // [] | map(select(.role == "user")) | last | .content[0].text // .content // ""' 2>/dev/null || echo "")
+user_msg=$(printf '%s' "$payload" | jq -r '.messages // [] | map(select(.role == "user")) | last | .content[0].text // .content // ""' 2>/dev/null | tr -d '\r' || echo "")
 
 # Normalize to lowercase for matching
 lower_msg=$(echo "$user_msg" | tr '[:upper:]' '[:lower:]')

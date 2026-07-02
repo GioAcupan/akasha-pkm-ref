@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-payload=$(cat)
-fp=$(printf '%s' "$payload" | jq -r '.tool_input.file_path // ""')
+
+# WSL compat: use jq.exe when native jq isn't available
+command -v jq.exe >/dev/null 2>&1 && jq() { jq.exe "$@"; }
+payload=$(cat | tr -d '\r')
+fp=$(printf '%s' "$payload" | jq -r '.tool_input.file_path // ""' | tr -d '\r')
 if [[ "$fp" == *"/Inbox/_processed/"* ]]; then
   jq -n '{hookSpecificOutput:{hookEventName:"PreToolUse",
     permissionDecision:"deny",

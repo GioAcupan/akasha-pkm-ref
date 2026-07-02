@@ -1,0 +1,2 @@
+# Lock hook scripts to LF — they run in WSL/bash and CRLF breaks them
+.commandcode/hooks/*.sh text eol=lf
