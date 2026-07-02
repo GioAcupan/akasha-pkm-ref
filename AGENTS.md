@@ -10,9 +10,10 @@ At the start of any session, silently read context in this order, respecting tok
 
 1. **`.akasha/hot.md`** — ≤500 tokens. Establishes active context (streak, goals, yesterday's carry-over, today's ONE Big Thing, inbox count).
 2. **`Knowledge/_domains.md`** — ≤1000 tokens. Establishes the domain landscape and which Knowledge areas exist.
-3. **3-5 specific pages** relevant to today's work — ≤300 tokens each.
+3. **3-5 specific pages** relevant to today's work — ≤300 tokens each. Scan `Knowledge/_index.md` note titles or infer from hot.md's goals/ONE Big Thing to identify relevant pages.
 
 Total pre-work: ≤3000 tokens before executing any user request.
+If hot.md is empty or contains only a placeholder, skip step 3 (no relevant pages known yet).
 
 ---
 
