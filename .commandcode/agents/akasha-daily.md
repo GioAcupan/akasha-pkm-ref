@@ -66,6 +66,17 @@ Process:
 
 11. Report: file path created, carry-over count, streak status (streak_count, last_entry).
 
+### Hot cache update
+
+After scaffolding today's daily note, write `.akasha/hot.md` with ONLY these fields (keep under 500 tokens):
+- Active streak (from `.akasha/streak.md`)
+- Current goals cascade summary (from `Goals/` files at all levels)
+- Yesterday's top-3 deliverables and one-line reflection
+- Current inbox count (files in `Inbox/` excluding `_processed/`)
+- ONE Big Thing for today
+
+Do NOT include: full session logs, file listings, raw command output, or any content longer than 500 tokens total.
+
 Edge cases:
 - No yesterday daily: Fresh daily with "None" for Suggestions and Carry-over
 - Yesterday daily has all items checked: "None" for carry-over, note that all items were completed
