@@ -34,7 +34,8 @@ fi
 # Streak
 STREAK_FILE="$VAULT/.akasha/streak.md"
 if [ -f "$STREAK_FILE" ]; then
-  STREAK_LEN=$(grep -c "✅" "$STREAK_FILE" 2>/dev/null || echo "?")
+  # Count date lines (YYYY-MM-DD) as streak entries
+  STREAK_LEN=$(grep -cP '^\d{4}-\d{2}-\d{2}' "$STREAK_FILE" 2>/dev/null || echo "?")
   STUDY=$(grep -c "study: ✅" "$STREAK_FILE" 2>/dev/null && echo "✅" || echo "❌")
   MOVE=$(grep -c "move: ✅" "$STREAK_FILE" 2>/dev/null && echo "✅" || echo "❌")
   CONSUME=$(grep -c "consume: ✅" "$STREAK_FILE" 2>/dev/null && echo "✅" || echo "❌")

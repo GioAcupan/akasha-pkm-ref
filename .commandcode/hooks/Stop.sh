@@ -17,19 +17,8 @@ TURN=0
 TURN=$((TURN + 1))
 echo "$TURN" > "$TURN_FILE"
 
-# Extract user message text using Node.js (portable JSON parsing)
-user_msg=$(echo "$payload" | node -e "
-  process.stdin.on('data', d => {
-    try {
-      const p = JSON.parse(d);
-      const msgs = p.messages || [];
-      const last = msgs.filter(m => m.role === 'user').pop();
-      console.log(last?.content?.[0]?.text || last?.content || '');
-    } catch(e) {
-      console.log('');
-    }
-  });
-")
+# Extract user message text using jq (consistent with other hooks)
+user_msg=$(printf '%s' "$payload" | jq -r '.messages // [] | map(select(.role == "user")) | last | .content[0].text // .content // ""' 2>/dev/null || echo "")
 
 # Normalize to lowercase for matching
 lower_msg=$(echo "$user_msg" | tr '[:upper:]' '[:lower:]')
@@ -60,21 +49,21 @@ fi
 echo "$TURN" > "$CACHE"
 
 # Inject system message with skill listing
-node -e "
-  console.log(JSON.stringify({
-    systemMessage: 'Available Akasha commands:\n\n' +
-      '  /akasha-review    — Smart router: daily/weekly/monthly review\n' +
-      '  /akasha-ingest    — Process one inbox item\n' +
-      '  /akasha-lint      — Vault hygiene report (read-only)\n' +
-      '  /akasha-query     — Search or status dashboard\n' +
-      '  /akasha-daily     — Scaffold today\\'s daily note\n' +
-      '  /akasha-weekly    — Weekly review ritual\n' +
-      '  /akasha-recap     — Period recap (weekly/monthly/semester)\n' +
-      '  /akasha-capture   — Quick seed note creation\n' +
-      '  /akasha-goal-set  — Create goals at any cascade level\n' +
-      '  /akasha-goal-check— Audit goals vs recent activity\n' +
-      '  /akasha-search    — Search knowledge base\n' +
-      '  /akasha-adopt     — Migrate existing vault into Akasha\\n\\n' +
-      'Tip: type /akasha-<command> to run one.'
-  }));
-"
+SKILL_LIST='Available Akasha commands:
+
+  /akasha-review    — Smart router: daily/weekly/monthly review
+  /akasha-ingest    — Process one inbox item
+  /akasha-lint      — Vault hygiene report (read-only)
+  /akasha-query     — Search or status dashboard
+  /akasha-daily     — Scaffold today'\''s daily note
+  /akasha-weekly    — Weekly review ritual
+  /akasha-recap     — Period recap (weekly/monthly/semester)
+  /akasha-capture   — Quick seed note creation
+  /akasha-goal-set  — Create goals at any cascade level
+  /akasha-goal-check— Audit goals vs recent activity
+  /akasha-search    — Search knowledge base
+  /akasha-adopt     — Migrate existing vault into Akasha
+
+Tip: type /akasha-<command> to run one.'
+
+jq -n --arg msg "$SKILL_LIST" '{systemMessage: $msg}'
