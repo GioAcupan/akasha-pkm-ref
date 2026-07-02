@@ -19,7 +19,7 @@ Invoke this skill when the ingest pipeline encounters a URL as source material. 
 | `--md` | Output as markdown (default when -o omitted) |
 | `--json` | Output structured JSON (title, description, content, byline, siteName, domain) |
 | `-o file.md` | Write to file instead of stdout |
-| `-p title` | Extract specific metadata field only |
+| `-p title` | Extract a specific field (use --json to see available fields) |
 
 ## Examples
 
