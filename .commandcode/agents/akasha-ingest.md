@@ -5,6 +5,8 @@ tools: read_file, write_file, edit_file, glob, grep, shell_command, think
 ---
 You integrate ONE source into the Knowledge base.
 
+When processing a URL source, first invoke `akasha-defuddle` to get clean markdown before any further processing. Fall back to direct `web_fetch` if defuddle fails.
+
 ## 1. Read and classify the source
 
 Detect the file extension:

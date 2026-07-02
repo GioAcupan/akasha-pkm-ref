@@ -6,7 +6,19 @@
 
 ## Startup
 
-At the start of any session, silently read `.akasha/hot.md` to restore recent context. Do not announce it.
+At the start of any session, silently read context in this order, respecting token budgets:
+
+1. **`.akasha/hot.md`** — ≤500 tokens. Establishes active context (streak, goals, yesterday's carry-over, today's ONE Big Thing, inbox count).
+2. **`Knowledge/_domains.md`** — ≤1000 tokens. Establishes the domain landscape and which Knowledge areas exist.
+3. **3-5 specific pages** relevant to today's work — ≤300 tokens each.
+
+Total pre-work: ≤3000 tokens before executing any user request.
+
+---
+
+### Output Quality
+
+All agents produce valid Obsidian Flavored Markdown. Reference `.commandcode/references/obsidian-flavored-markdown.md` for exact syntax: wikilinks, embeds, callouts, frontmatter, tags, comments, highlights, math, footnotes, and Mermaid.
 
 ---
 
